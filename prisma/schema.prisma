@@ -1,0 +1,51 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Question {
+  id String @id @default(uuid())
+
+  text    String
+  correctOptionId String?
+  
+  Options Option[] @relation("QuestionToOptions")
+  Answers Answer[] @relation("QuestionToAnswers")
+
+  createdAt DateTime @default(now())
+}
+
+model Option {
+  id   String @id @default(uuid())
+  text String
+
+  questionId String
+  Question   Question @relation("QuestionToOptions", fields: [questionId], references: [id])
+
+  Answers    Answer[] @relation("OptionToAnswers")
+
+  createdAt DateTime @default(now())
+
+  @@index([questionId])
+}
+
+model Answer {
+  id String @id @default(uuid())
+
+  userId String
+
+  questionId String
+  question   Question @relation("QuestionToAnswers", fields: [questionId], references: [id])
+
+  optionId String
+  option   Option  @relation("OptionToAnswers", fields: [optionId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([questionId])
+  @@index([optionId])
+}
