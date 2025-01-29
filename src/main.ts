@@ -28,7 +28,9 @@ async function bootstrap() {
     }
     if (key.name === 's') {
       const gameService = app.get(GameService);
-      gameService.startGame();
+      gameService.startGame({
+        numberOfQuestions: 10
+      });
       console.log('Starting new game...');
     }
     if (key.name === 'q') {

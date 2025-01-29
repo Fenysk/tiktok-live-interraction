@@ -3,6 +3,7 @@ import { GameState } from './interfaces/game.interface';
 import { TiktokService } from 'src/tiktok/tiktok.service';
 import { QuestionsService } from 'src/quiz/services/questions.service';
 import { WebsocketsGateway } from 'src/websockets/websockets.gateway';
+import { StartGameDto } from './dto/start-game.dto';
 
 @Injectable()
 export class GameService {
@@ -14,6 +15,15 @@ export class GameService {
 
     private questionTimeout: NodeJS.Timeout;
     private readonly QUESTION_DURATION = 30000;
+    private readonly RESTART_DELAY = 60000;
+    private totalQuestions: number;
+    private currentQuestionNumber: number;
+    private remainingTime: number;
+    private timerStartTime: number;
+    private isPaused: boolean = false;
+    private gameQuestions: any[] = [];
+    private lastGameSettings: StartGameDto;
+    private isQuestionAnswered: boolean = false;
 
     constructor(
         private readonly questionsService: QuestionsService,
@@ -31,45 +41,109 @@ export class GameService {
         });
     }
 
-    async startGame(): Promise<void> {
-        this.gameState.isActive = true;
-        this.gameState.scores = new Map();
+    private startTimer(): void {
+        this.stopTimer();
+        this.resetTimer();
+
+        this.isPaused = false;
+        this.timerStartTime = Date.now();
+        this.questionTimeout = setTimeout(() => {
+            this.websocketsGateway.emitQuestionTimeout();
+        }, this.remainingTime);
+    }
+
+    private pauseTimer(): void {
+        if (this.questionTimeout) {
+            clearTimeout(this.questionTimeout);
+            this.remainingTime = this.remainingTime - (Date.now() - this.timerStartTime);
+            this.isPaused = true;
+        }
+    }
+
+    private stopTimer(): void {
+        if (this.questionTimeout) {
+            clearTimeout(this.questionTimeout);
+            this.questionTimeout = null;
+        }
+    }
+
+    private resetTimer(): void {
+        this.remainingTime = this.QUESTION_DURATION;
+        this.isPaused = false;
+    }
+
+    async startGame(dto: StartGameDto): Promise<void> {
+        if (this.gameState.isActive)
+            this.stopGame();
+
+        this.lastGameSettings = dto;
+        this.gameState = {
+            isActive: true,
+            currentQuestion: null,
+            scores: new Map<string, number>()
+        };
+
+        this.totalQuestions = dto.numberOfQuestions || 10;
+        this.currentQuestionNumber = 0;
+
+        this.gameQuestions = [];
+        for (let i = 0; i < this.totalQuestions; i++) {
+            const question = await this.questionsService.getRandomQuestion();
+            if (!question)
+                return this.stopGame();
+
+            this.gameQuestions.push(question);
+        }
+
         await this.nextQuestion();
     }
 
     stopGame(): void {
         this.gameState.isActive = false;
-        clearTimeout(this.questionTimeout);
+        this.stopTimer();
+        this.gameQuestions = [];
         this.websocketsGateway.emitGameEnded(Array.from(this.gameState.scores.entries()));
+
+        setTimeout(async () => {
+            console.log('Restarting game...');
+            await this.startGame(this.lastGameSettings);
+        }, this.RESTART_DELAY);
     }
 
-    private async nextQuestion(): Promise<void> {
+    async nextQuestion(): Promise<void> {
         if (!this.gameState.isActive) return;
 
-        const randomQuestion = await this.questionsService.getRandomQuestion();
-        if (!randomQuestion)
+        this.currentQuestionNumber++;
+
+        if (this.currentQuestionNumber > this.totalQuestions) {
+            console.log('Game finished! Final scores:');
+            console.log(Array.from(this.gameState.scores.entries()));
             return this.stopGame();
+        }
+
+        const currentQuestion = this.gameQuestions[this.currentQuestionNumber - 1];
 
         this.gameState.currentQuestion = {
-            id: randomQuestion.id,
-            text: randomQuestion.text,
-            options: randomQuestion.Options,
-            correctOptionId: randomQuestion.correctOptionId
+            id: currentQuestion.id,
+            currentQuestionNumber: this.currentQuestionNumber,
+            totalQuestions: this.totalQuestions,
+            text: currentQuestion.text,
+            options: currentQuestion.Options,
+            correctOptionId: currentQuestion.correctOptionId
         };
 
-        console.log('Question:', this.gameState.currentQuestion.text);
+        this.isQuestionAnswered = false;
+
+        console.log(`Question ${this.currentQuestionNumber}/${this.totalQuestions}:`, this.gameState.currentQuestion.text);
         console.log('Options:', this.gameState.currentQuestion.options.map(opt => opt.text));
 
         this.websocketsGateway.emitNewQuestion(this.gameState.currentQuestion);
-
-        this.questionTimeout = setTimeout(() => {
-            this.websocketsGateway.emitQuestionTimeout();
-            this.nextQuestion();
-        }, this.QUESTION_DURATION);
+        this.startTimer();
     }
 
     private async handleCorrectAnswer(userId: string, nickname: string): Promise<void> {
-        clearTimeout(this.questionTimeout);
+        this.stopTimer();
+        this.isQuestionAnswered = true;
 
         const currentScore = this.gameState.scores.get(userId) || 0;
         const newScore = currentScore + 1;
@@ -82,18 +156,16 @@ export class GameService {
             nickname,
             score: newScore
         });
-
-        await this.nextQuestion();
     }
 
     async handleAnswer(userId: string, nickname: string, answer: string): Promise<boolean> {
-        if (!this.gameState.currentQuestion) return false;
+        if (!this.gameState.currentQuestion || this.isQuestionAnswered) return false;
 
         const correctOption = this.gameState.currentQuestion.options.find(
             option => option.id === this.gameState.currentQuestion.correctOptionId
         );
 
-        if (answer.toLowerCase() === correctOption.text.toLowerCase()) {
+        if (answer.toLowerCase().replace(/[^a-zA-Z0-9]/g, '') === correctOption.text.toLowerCase().replace(/[^a-zA-Z0-9]/g, '')) {
             await this.handleCorrectAnswer(userId, nickname);
             return true;
         }

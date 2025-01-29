@@ -9,12 +9,14 @@ import { Logger } from '@nestjs/common';
 
 interface Question {
   id: string;
+  currentQuestionNumber: number;
+  totalQuestions: number;
   text: string;
   options: Array<{
     id: string;
     text: string;
   }>;
-  correctOptionId: string;
+  correctOptionId: string;  
 }
 
 interface CorrectAnswerData {
