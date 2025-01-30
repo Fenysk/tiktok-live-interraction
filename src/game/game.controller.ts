@@ -6,17 +6,6 @@ import { StartGameDto } from './dto/start-game.dto';
 export class GameController {
   constructor(private readonly gameService: GameService) {}
 
-  @Post('answer')
-  async handleAnswer(
-    @Body() body: { userId: string; nickname: string; answer: string }
-  ): Promise<boolean> {
-    return this.gameService.handleAnswer(
-      body.userId,
-      body.nickname, 
-      body.answer
-    );
-  }
-
   @HttpCode(HttpStatus.OK)
   @Post('start')
   async startGame(

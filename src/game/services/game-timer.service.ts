@@ -5,9 +5,8 @@ import { GAME_CONSTANTS } from '../constants/game.constants';
 @Injectable()
 export class GameTimerService {
     private questionTimeout: NodeJS.Timeout;
-    private readonly QUESTION_DURATION = GAME_CONSTANTS.QUESTION_DURATION;
+    private readonly questionDuration = GAME_CONSTANTS.QUESTION_DURATION;
     private remainingTime: number;
-    private timerStartTime: number;
     private isPaused: boolean = false;
 
     constructor(private readonly websocketsGateway: WebsocketsGateway) {}
@@ -17,7 +16,6 @@ export class GameTimerService {
         this.resetTimer();
 
         this.isPaused = false;
-        this.timerStartTime = Date.now();
         this.questionTimeout = setTimeout(() => {
             this.websocketsGateway.emitQuestionTimeout();
         }, this.remainingTime);
@@ -31,7 +29,7 @@ export class GameTimerService {
     }
 
     resetTimer(): void {
-        this.remainingTime = this.QUESTION_DURATION;
+        this.remainingTime = this.questionDuration;
         this.isPaused = false;
     }
 }

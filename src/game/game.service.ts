@@ -1,33 +1,31 @@
 import { Injectable } from '@nestjs/common';
 import { GameState } from './interfaces/game.interface';
 import { TiktokService } from 'src/tiktok/tiktok.service';
-import { QuestionsService } from 'src/quiz/services/questions.service';
+import { QuestionsService } from 'src/questions/questions.service';
 import { WebsocketsGateway } from 'src/websockets/websockets.gateway';
 import { StartGameDto } from './dto/start-game.dto';
 import { GAME_CONSTANTS } from './constants/game.constants';
 import { GameStateService } from './services/game-state.service';
 import { GameTimerService } from './services/game-timer.service';
+import { LikeService } from 'src/like/like.service';
 
 @Injectable()
 export class GameService {
     private gameState: GameState;
 
-    private QUESTION_DURATION: number = GAME_CONSTANTS.QUESTION_DURATION;
-    private readonly RESTART_DELAY = GAME_CONSTANTS.RESTART_DELAY;
     private totalQuestions: number = GAME_CONSTANTS.TOTAL_QUESTION;
     private currentQuestionNumber: number;
     private isQuestionAnswered: boolean = false;
     private gameQuestions: any[] = [];
     private lastGameSettings: StartGameDto;
-    private likeCount: number = 0;
-    private readonly LIKES_TO_START = GAME_CONSTANTS.LIKE_COUNT_TO_START;
 
     constructor(
         private readonly questionsService: QuestionsService,
         private readonly tiktokService: TiktokService,
         private readonly websocketsGateway: WebsocketsGateway,
         private readonly gameStateService: GameStateService,
-        private readonly gameTimerService: GameTimerService
+        private readonly gameTimerService: GameTimerService,
+        private readonly likeService: LikeService, 
     ) {
         this.initializeChatListener();
         this.initializeLikeListener();
@@ -45,16 +43,17 @@ export class GameService {
     private initializeLikeListener(): void {
         this.tiktokService.onLike((userId: string, nickname: string, likeCount: number) => {
             if (!this.gameState.isActive) {
-                this.likeCount += likeCount;
-                this.websocketsGateway.emitTotalLikes(this.likeCount); 
-                
-                if (this.likeCount >= this.LIKES_TO_START) {
+                this.likeService.addLikes(likeCount); // Utiliser le LikeService
+                const totalLikes = this.likeService.getLikeCount();
+                this.websocketsGateway.emitTotalLikes(totalLikes);
+
+                if (this.likeService.shouldStartGame()) {
                     console.log('Starting game due to like threshold reached!');
-                    this.likeCount = 0;
+                    this.likeService.resetLikeCount(); // Réinitialiser le compteur de likes
                     this.startGame({
                         numberOfQuestions: this.totalQuestions,
                         defaultQuestionTimeout: GAME_CONSTANTS.QUESTION_DURATION
-                    });                    
+                    });
                 }
             }
         });
@@ -86,9 +85,6 @@ export class GameService {
         this.totalQuestions = dto.numberOfQuestions || GAME_CONSTANTS.TOTAL_QUESTION;
         this.currentQuestionNumber = 0;
 
-        if (dto.defaultQuestionTimeout)
-            this.QUESTION_DURATION = dto.defaultQuestionTimeout;
-
         this.gameQuestions = [];
         for (let i = 0; i < this.totalQuestions; i++) {
             const question = await this.questionsService.getRandomQuestion();
@@ -111,11 +107,6 @@ export class GameService {
         this.currentQuestionNumber = 0;
         this.isQuestionAnswered = false;
         this.websocketsGateway.emitGameEnded(Array.from(this.gameState.scores.entries()));
-
-        setTimeout(async () => {
-            console.log('Restarting game...');
-            await this.startGame(this.lastGameSettings);
-        }, this.RESTART_DELAY);
     }
 
     async nextQuestion(): Promise<void> {
