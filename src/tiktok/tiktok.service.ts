@@ -11,16 +11,25 @@ export class TiktokService {
     private reconnectAttempts = 0;
     private readonly MAX_RECONNECT_ATTEMPTS = 100;
     private readonly RECONNECT_DELAY = 5000;
+    private isConnected = false;
 
     onChatMessage(handler: (userId: string, nickname: string, message: string) => void): void {
         this.messageHandlers.push(handler);
     }
 
     async initTikTokLiveConnection() {
+        console.log('Connecting to TikTok live...');
+        
+        if (this.isConnected) {
+            console.info('Already connected to TikTok live');
+            return;
+        }
+
         try {
             const state = await this.tiktokLiveConnection.connect();
             console.info(`Connected to roomId ${state.roomId}`);
             this.reconnectAttempts = 0;
+            this.isConnected = true;
 
             this.tiktokLiveConnection.on('chat', (data: ChatMessage) => {
                 this.messageHandlers.forEach(handler =>
@@ -30,11 +39,13 @@ export class TiktokService {
 
             this.tiktokLiveConnection.on('disconnected', () => {
                 console.warn('Disconnected from TikTok live');
+                this.isConnected = false;
                 this.handleReconnect();
             });
 
         } catch (err) {
             console.error('Failed to connect', err);
+            this.isConnected = false;
             this.handleReconnect();
         }
     }

@@ -23,8 +23,7 @@ async function bootstrap() {
     }
     if (key.name === 'l') {
       const tiktokService = app.get(TiktokService);
-      tiktokService.initTikTokLiveConnection();
-      console.log('Connecting to TikTok live...');
+      tiktokService.initTikTokLiveConnection();      
     }
     if (key.name === 's') {
       const gameService = app.get(GameService);

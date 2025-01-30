@@ -100,8 +100,13 @@ export class GameService {
 
     stopGame(): void {
         this.gameState.isActive = false;
+        this.gameState.currentQuestion = null;
+        this.gameState.scores = new Map<string, number>();
         this.stopTimer();
+        this.resetTimer();
         this.gameQuestions = [];
+        this.currentQuestionNumber = 0;
+        this.isQuestionAnswered = false;
         this.websocketsGateway.emitGameEnded(Array.from(this.gameState.scores.entries()));
 
         setTimeout(async () => {
