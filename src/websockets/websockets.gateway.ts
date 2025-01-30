@@ -19,9 +19,10 @@ interface Question {
   correctOptionId: string;  
 }
 
-interface CorrectAnswerData {
+interface Player {
   userId: string;
   nickname: string;
+  profilePictureUrl: string;
   score: number;
 }
 
@@ -55,8 +56,8 @@ export class WebsocketsGateway implements OnGatewayConnection, OnGatewayDisconne
     this.server.emit('questionTimeout');
   }
 
-  emitCorrectAnswer(data: CorrectAnswerData) {
-    this.logger.log(`Emitting correct answer: ${data.nickname}`);
+  emitCorrectAnswer(data: Player) {
+    this.logger.log(`Emitting correct answer: ${JSON.stringify(data)}`);
     this.server.emit('correctAnswer', data);
   }
 

@@ -13,6 +13,7 @@ export class AnswersController {
       return this.gameService.handleAnswer(
         body.userId,
         body.nickname, 
+        body.profilePictureUrl,
         body.answer
       );
     }

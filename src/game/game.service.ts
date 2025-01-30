@@ -33,9 +33,9 @@ export class GameService {
     }
 
     private initializeChatListener(): void {
-        this.tiktokService.onChatMessage((userId: string, nickname: string, message: string) => {
+        this.tiktokService.onChatMessage((userId: string, nickname: string, profilePictureUrl: string, message: string) => {
             if (this.gameState.isActive && this.gameState.currentQuestion) {
-                this.handleAnswer(userId, nickname, message);
+                this.handleAnswer(userId, nickname, profilePictureUrl, message);
             }
         });
     }
@@ -140,7 +140,7 @@ export class GameService {
         this.startTimer();
     }
 
-    private async handleCorrectAnswer(userId: string, nickname: string): Promise<void> {
+    private async handleCorrectAnswer(userId: string, nickname: string, profilePictureUrl: string): Promise<void> {
         this.stopTimer();
         this.isQuestionAnswered = true;
 
@@ -153,11 +153,12 @@ export class GameService {
         this.websocketsGateway.emitCorrectAnswer({
             userId,
             nickname,
+            profilePictureUrl,
             score: newScore
         });
     }
 
-    async handleAnswer(userId: string, nickname: string, answer: string): Promise<boolean> {
+    async handleAnswer(userId: string, nickname: string, profilePictureUrl:string, answer: string): Promise<boolean> {
         if (!this.gameState.currentQuestion || this.isQuestionAnswered) return false;
 
         const correctOption = this.gameState.currentQuestion.options.find(
@@ -165,7 +166,7 @@ export class GameService {
         );
 
         if (answer.toLowerCase().replace(/[^a-zA-Z0-9]/g, '') === correctOption.text.toLowerCase().replace(/[^a-zA-Z0-9]/g, '')) {
-            await this.handleCorrectAnswer(userId, nickname);
+            await this.handleCorrectAnswer(userId, nickname, profilePictureUrl);
             return true;
         }
 

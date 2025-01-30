@@ -8,6 +8,10 @@ export class AnswerDto {
     @IsString()
     @IsNotEmpty()
     nickname: string;
+    
+    @IsString()
+    @IsNotEmpty()
+    profilePictureUrl: string;
 
     @IsString()
     @IsNotEmpty()

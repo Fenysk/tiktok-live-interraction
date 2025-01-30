@@ -9,14 +9,14 @@ import { LikeMessage } from './interface/like.interface';
 export class TiktokService {
     private tiktokUsername = GAME_CONSTANTS.TIKTOK_STREAM_ACCOUNT;
     private tiktokLiveConnection = new WebcastPushConnection(this.tiktokUsername);
-    private messageHandlers: Array<(userId: string, nickname: string, message: string) => void> = [];
+    private messageHandlers: Array<(userId: string, nickname: string, profilePictureUrl:string, message: string) => void> = [];
     private likeHandlers: Array<(userId: string, nickname: string, likeCount: number) => void> = [];
     private reconnectAttempts = 0;
     private readonly MAX_RECONNECT_ATTEMPTS = 10;
     private readonly RECONNECT_DELAY = 5000;
     private isConnected = false;
 
-    onChatMessage(handler: (userId: string, nickname: string, message: string) => void): void {
+    onChatMessage(handler: (userId: string, nickname: string, profilePictureUrl:string, message: string) => void): void {
         this.messageHandlers.push(handler);
     }
 
@@ -40,7 +40,7 @@ export class TiktokService {
 
             this.tiktokLiveConnection.on('chat', (data: ChatMessage) => {
                 this.messageHandlers.forEach(handler =>
-                    handler(data.userId, data.nickname, data.comment)
+                    handler(data.userId, data.nickname, data.profilePictureUrl, data.comment)
                 );
             });
 
@@ -54,6 +54,13 @@ export class TiktokService {
                 this.likeHandlers.forEach(handler =>
                     handler(data.userId, data.nickname, data.likeCount)
                 );
+            });
+
+            this.tiktokLiveConnection.on('gift', data  => {
+                this.likeHandlers.forEach(handler =>
+                    handler(data.userId, data.nickname, data.likeCount)
+                );
+                console.log(`${data}`);
             });
 
         } catch (err) {
