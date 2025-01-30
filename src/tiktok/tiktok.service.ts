@@ -9,7 +9,7 @@ export class TiktokService {
     private tiktokLiveConnection = new WebcastPushConnection(this.tiktokUsername);
     private messageHandlers: Array<(userId: string, nickname: string, message: string) => void> = [];
     private reconnectAttempts = 0;
-    private readonly MAX_RECONNECT_ATTEMPTS = 100;
+    private readonly MAX_RECONNECT_ATTEMPTS = 10;
     private readonly RECONNECT_DELAY = 5000;
     private isConnected = false;
 
