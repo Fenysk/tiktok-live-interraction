@@ -27,6 +27,15 @@ interface Player {
 }
 
 
+interface Gift {
+  userId: string;
+  nickname: string;
+  profilePictureUrl: string;
+  giftName: string;
+  diamondCount: number;
+}
+
+
 type Scores = Array<[string, number]>;
 
 @WebSocketGateway({
@@ -69,5 +78,10 @@ export class WebsocketsGateway implements OnGatewayConnection, OnGatewayDisconne
   emitTotalLikes(totalLikes: number) {
     this.logger.log(`Emitting total likes: ${totalLikes}`);
     this.server.emit('totalLikes', totalLikes);
+  }
+
+  emitGiftReceived(gift: Gift) {
+    this.logger.log(`Emitting gift received: ${gift}`);
+    this.server.emit('giftReceived', gift);
   }
 }

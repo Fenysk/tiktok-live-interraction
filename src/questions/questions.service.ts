@@ -41,10 +41,63 @@ export class QuestionsService {
         });
     }
 
+    async createMultipleQuestion(createQuestionDto: CreateQuestionDto[]) {
+        return this.prismaService.$transaction(async (tx) => {
+            const createdQuestions = await Promise.all(
+                createQuestionDto.map(async (questionDto) => {
+                    const { text, correctOptionIndex, options } = questionDto;
+    
+                    const question = await tx.question.create({
+                        data: {
+                            text,
+                            correctOptionId: null,
+                            Options: {
+                                create: options.map(option => ({
+                                    text: option.text
+                                }))
+                            }
+                        },
+                        include: {
+                            Options: true
+                        }
+                    });
+    
+                    const updatedQuestion = await tx.question.update({
+                        where: { id: question.id },
+                        data: {
+                            correctOptionId: question.Options[correctOptionIndex].id
+                        },
+                        include: {
+                            Options: true
+                        }
+                    });
+    
+                    return updatedQuestion;
+                })
+            );
+    
+            return createdQuestions;
+        }, {
+            maxWait: 99999999,
+            timeout: 9999999,
+        });
+    }
+    
+    
+
     async getQuestions() {
         return this.prismaService.question.findMany({
             include: {
                 Options: true
+            }
+        });
+    }
+
+    async getTextOfQuestions () {
+        return this.prismaService.question.findMany({
+            select: {
+                id: true,
+                text: true
             }
         });
     }

@@ -13,9 +13,19 @@ export class QuestionsController {
         return this.questionsService.createQuestion(createQuestionDto);
     }
 
+    @Post('multi')
+    async createMultipleQuestion(@Body() createQuestionDto: CreateQuestionDto[]) {
+        return this.questionsService.createMultipleQuestion(createQuestionDto);
+    }
+
     @Get()
     async getQuestions() {
         return this.questionsService.getQuestions();
+    }
+
+    @Get('text')
+    async getTextOfQuestions() {
+        return this.questionsService.getTextOfQuestions();
     }
 
     @Delete(':id')

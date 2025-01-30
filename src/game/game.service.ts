@@ -29,6 +29,7 @@ export class GameService {
     ) {
         this.initializeChatListener();
         this.initializeLikeListener();
+        this.initializeGiftListener();
         this.gameState = this.gameStateService.getCurrentState();
     }
 
@@ -56,6 +57,19 @@ export class GameService {
                     });
                 }
             }
+        });
+    }
+
+    private initializeGiftListener(): void {
+        this.tiktokService.onGift((userId: string, nickname: string, profilePictureUrl: string, giftName: string, diamondCount: number) => {
+            console.log(`Gift received from ${nickname} (${userId}): ${giftName} with ${diamondCount} diamonds!`);
+            this.websocketsGateway.emitGiftReceived({
+                userId,
+                nickname,
+                profilePictureUrl,
+                giftName,
+                diamondCount
+            });
         });
     }
 
