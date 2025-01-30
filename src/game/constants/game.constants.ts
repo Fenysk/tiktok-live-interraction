@@ -1,0 +1,6 @@
+export const GAME_CONSTANTS = {
+    QUESTION_DURATION: 30000,
+    RESTART_DELAY: 60000,
+    MAX_QUESTIONS: 50,
+    MIN_QUESTIONS: 1
+} as const;

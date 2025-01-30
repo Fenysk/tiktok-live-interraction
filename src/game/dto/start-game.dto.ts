@@ -5,4 +5,9 @@ export class StartGameDto {
   @IsOptional()
   @Min(1)
   numberOfQuestions?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(1)
+  defaultQuestionTimeout?: number;
 }

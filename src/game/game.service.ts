@@ -4,6 +4,9 @@ import { TiktokService } from 'src/tiktok/tiktok.service';
 import { QuestionsService } from 'src/quiz/services/questions.service';
 import { WebsocketsGateway } from 'src/websockets/websockets.gateway';
 import { StartGameDto } from './dto/start-game.dto';
+import { GAME_CONSTANTS } from './constants/game.constants';
+import { GameStateService } from './services/game-state.service';
+import { GameTimerService } from './services/game-timer.service';
 
 @Injectable()
 export class GameService {
@@ -13,22 +16,20 @@ export class GameService {
         scores: new Map<string, number>()
     };
 
-    private questionTimeout: NodeJS.Timeout;
-    private readonly QUESTION_DURATION = 30000;
-    private readonly RESTART_DELAY = 60000;
+    private QUESTION_DURATION: number = GAME_CONSTANTS.QUESTION_DURATION;
+    private readonly RESTART_DELAY = GAME_CONSTANTS.RESTART_DELAY;
     private totalQuestions: number;
     private currentQuestionNumber: number;
-    private remainingTime: number;
-    private timerStartTime: number;
-    private isPaused: boolean = false;
+    private isQuestionAnswered: boolean = false;
     private gameQuestions: any[] = [];
     private lastGameSettings: StartGameDto;
-    private isQuestionAnswered: boolean = false;
 
     constructor(
         private readonly questionsService: QuestionsService,
         private readonly tiktokService: TiktokService,
-        private readonly websocketsGateway: WebsocketsGateway
+        private readonly websocketsGateway: WebsocketsGateway,
+        private readonly gameStateService: GameStateService,
+        private readonly gameTimerService: GameTimerService
     ) {
         this.initializeChatListener();
     }
@@ -42,34 +43,15 @@ export class GameService {
     }
 
     private startTimer(): void {
-        this.stopTimer();
-        this.resetTimer();
-
-        this.isPaused = false;
-        this.timerStartTime = Date.now();
-        this.questionTimeout = setTimeout(() => {
-            this.websocketsGateway.emitQuestionTimeout();
-        }, this.remainingTime);
-    }
-
-    private pauseTimer(): void {
-        if (this.questionTimeout) {
-            clearTimeout(this.questionTimeout);
-            this.remainingTime = this.remainingTime - (Date.now() - this.timerStartTime);
-            this.isPaused = true;
-        }
+        this.gameTimerService.startTimer();
     }
 
     private stopTimer(): void {
-        if (this.questionTimeout) {
-            clearTimeout(this.questionTimeout);
-            this.questionTimeout = null;
-        }
+        this.gameTimerService.stopTimer();
     }
 
     private resetTimer(): void {
-        this.remainingTime = this.QUESTION_DURATION;
-        this.isPaused = false;
+        this.gameTimerService.resetTimer();
     }
 
     async startGame(dto: StartGameDto): Promise<void> {
@@ -83,8 +65,11 @@ export class GameService {
             scores: new Map<string, number>()
         };
 
-        this.totalQuestions = dto.numberOfQuestions;
+        this.totalQuestions = dto.numberOfQuestions || 10;
         this.currentQuestionNumber = 0;
+
+        if (dto.defaultQuestionTimeout)
+            this.QUESTION_DURATION = dto.defaultQuestionTimeout;
 
         this.gameQuestions = [];
         for (let i = 0; i < this.totalQuestions; i++) {
@@ -180,5 +165,9 @@ export class GameService {
 
     getCurrentState(): GameState {
         return this.gameState;
+    }
+
+    isGameStarted(): boolean {
+        return this.gameState.isActive;
     }
 }

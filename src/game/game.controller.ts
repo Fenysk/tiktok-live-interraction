@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, Get } from '@nestjs/common';
 import { GameService } from './game.service';
 import { StartGameDto } from './dto/start-game.dto';
 
@@ -35,6 +35,11 @@ export class GameController {
   @Post('next-question')
   async nextQuestion(): Promise<void> {
     return this.gameService.nextQuestion();
+  }
+
+  @Get('is-started')
+  isGameStarted(): boolean {
+    return this.gameService.isGameStarted();
   }
 
 }
