@@ -69,5 +69,14 @@ export class QuestionsService {
         return question;
     }
 
+    async deleteQuestion(id: string) {
+        return this.prismaService.question.delete({
+            where: { id },
+            include: {
+                Options: true,
+                Answers: true,
+            }
+        });
+    }
 
 }

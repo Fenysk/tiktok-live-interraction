@@ -24,7 +24,7 @@ model Option {
   text String
 
   questionId String
-  Question   Question @relation("QuestionToOptions", fields: [questionId], references: [id])
+  Question   Question @relation("QuestionToOptions", fields: [questionId], references: [id], onDelete: Cascade)
 
   Answers    Answer[] @relation("OptionToAnswers")
 
@@ -39,10 +39,10 @@ model Answer {
   userId String
 
   questionId String
-  question   Question @relation("QuestionToAnswers", fields: [questionId], references: [id])
+  question   Question @relation("QuestionToAnswers", fields: [questionId], references: [id], onDelete: Cascade)
 
   optionId String
-  option   Option  @relation("OptionToAnswers", fields: [optionId], references: [id])
+  option   Option  @relation("OptionToAnswers", fields: [optionId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 

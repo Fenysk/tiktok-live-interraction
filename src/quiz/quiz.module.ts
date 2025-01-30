@@ -3,6 +3,7 @@ import { QuizService } from './services/quiz.service';
 import { QuestionsService } from './services/questions.service';
 import { QuestionsController } from './controllers/questions.controller';
 import { TiktokModule } from 'src/tiktok/tiktok.module';
+import { QuizController } from './quiz.controller';
 
 @Module({
   imports: [
@@ -12,7 +13,7 @@ import { TiktokModule } from 'src/tiktok/tiktok.module';
     QuizService,
     QuestionsService,
   ],
-  controllers: [QuestionsController],
+  controllers: [QuestionsController, QuizController],
   exports: [
     QuizService,
     QuestionsService,

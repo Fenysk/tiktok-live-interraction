@@ -83,7 +83,7 @@ export class GameService {
             scores: new Map<string, number>()
         };
 
-        this.totalQuestions = dto.numberOfQuestions || 10;
+        this.totalQuestions = dto.numberOfQuestions;
         this.currentQuestionNumber = 0;
 
         this.gameQuestions = [];
