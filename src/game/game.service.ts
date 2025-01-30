@@ -10,19 +10,17 @@ import { GameTimerService } from './services/game-timer.service';
 
 @Injectable()
 export class GameService {
-    private gameState: GameState = {
-        isActive: false,
-        currentQuestion: null,
-        scores: new Map<string, number>()
-    };
+    private gameState: GameState;
 
     private QUESTION_DURATION: number = GAME_CONSTANTS.QUESTION_DURATION;
     private readonly RESTART_DELAY = GAME_CONSTANTS.RESTART_DELAY;
-    private totalQuestions: number;
+    private totalQuestions: number = GAME_CONSTANTS.TOTAL_QUESTION;
     private currentQuestionNumber: number;
     private isQuestionAnswered: boolean = false;
     private gameQuestions: any[] = [];
     private lastGameSettings: StartGameDto;
+    private likeCount: number = 0;
+    private readonly LIKES_TO_START = GAME_CONSTANTS.LIKE_COUNT_TO_START;
 
     constructor(
         private readonly questionsService: QuestionsService,
@@ -32,12 +30,32 @@ export class GameService {
         private readonly gameTimerService: GameTimerService
     ) {
         this.initializeChatListener();
+        this.initializeLikeListener();
+        this.gameState = this.gameStateService.getCurrentState();
     }
 
     private initializeChatListener(): void {
         this.tiktokService.onChatMessage((userId: string, nickname: string, message: string) => {
             if (this.gameState.isActive && this.gameState.currentQuestion) {
                 this.handleAnswer(userId, nickname, message);
+            }
+        });
+    }
+
+    private initializeLikeListener(): void {
+        this.tiktokService.onLike((userId: string, nickname: string, likeCount: number) => {
+            if (!this.gameState.isActive) {
+                this.likeCount += likeCount;
+                this.websocketsGateway.emitTotalLikes(this.likeCount); 
+                
+                if (this.likeCount >= this.LIKES_TO_START) {
+                    console.log('Starting game due to like threshold reached!');
+                    this.likeCount = 0;
+                    this.startGame({
+                        numberOfQuestions: this.totalQuestions,
+                        defaultQuestionTimeout: GAME_CONSTANTS.QUESTION_DURATION
+                    });                    
+                }
             }
         });
     }
@@ -65,7 +83,7 @@ export class GameService {
             scores: new Map<string, number>()
         };
 
-        this.totalQuestions = dto.numberOfQuestions || 10;
+        this.totalQuestions = dto.numberOfQuestions || GAME_CONSTANTS.TOTAL_QUESTION;
         this.currentQuestionNumber = 0;
 
         if (dto.defaultQuestionTimeout)

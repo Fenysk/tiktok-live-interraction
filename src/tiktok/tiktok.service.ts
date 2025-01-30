@@ -1,13 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { WebcastPushConnection } from 'tiktok-live-connector';
 import { ChatMessage } from './interface/user.interface';
+import { GAME_CONSTANTS } from 'src/game/constants/game.constants';
+import { LikeMessage } from './interface/like.interface';
 
 
 @Injectable()
 export class TiktokService {
-    private tiktokUsername = "fenysk";
+    private tiktokUsername = GAME_CONSTANTS.TIKTOK_STREAM_ACCOUNT;
     private tiktokLiveConnection = new WebcastPushConnection(this.tiktokUsername);
     private messageHandlers: Array<(userId: string, nickname: string, message: string) => void> = [];
+    private likeHandlers: Array<(userId: string, nickname: string, likeCount: number) => void> = [];
     private reconnectAttempts = 0;
     private readonly MAX_RECONNECT_ATTEMPTS = 10;
     private readonly RECONNECT_DELAY = 5000;
@@ -15,6 +18,10 @@ export class TiktokService {
 
     onChatMessage(handler: (userId: string, nickname: string, message: string) => void): void {
         this.messageHandlers.push(handler);
+    }
+
+    onLike(handler: (userId: string, nickname: string, likeCount: number) => void): void {
+        this.likeHandlers.push(handler);
     }
 
     async initTikTokLiveConnection() {
@@ -41,6 +48,12 @@ export class TiktokService {
                 console.warn('Disconnected from TikTok live');
                 this.isConnected = false;
                 this.handleReconnect();
+            });
+
+            this.tiktokLiveConnection.on('like', (data: LikeMessage) => {
+                this.likeHandlers.forEach(handler =>
+                    handler(data.userId, data.nickname, data.likeCount)
+                );
             });
 
         } catch (err) {

@@ -25,6 +25,7 @@ interface CorrectAnswerData {
   score: number;
 }
 
+
 type Scores = Array<[string, number]>;
 
 @WebSocketGateway({
@@ -62,5 +63,10 @@ export class WebsocketsGateway implements OnGatewayConnection, OnGatewayDisconne
   emitGameEnded(scores: Scores) {
     this.logger.log(`Emitting game ended with scores: ${scores}`);
     this.server.emit('gameEnded', scores);
+  }
+
+  emitTotalLikes(totalLikes: number) {
+    this.logger.log(`Emitting total likes: ${totalLikes}`);
+    this.server.emit('totalLikes', totalLikes);
   }
 }
