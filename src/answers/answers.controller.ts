@@ -11,7 +11,7 @@ export class AnswersController {
       @Body() body: AnswerDto
     ): Promise<boolean> {
       return this.gameService.handleAnswer(
-        body.userId,
+        body.uniqueId,
         body.nickname, 
         body.profilePictureUrl,
         body.answer

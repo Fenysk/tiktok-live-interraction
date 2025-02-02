@@ -1,4 +1,4 @@
-export interface User {
+export interface TiktokUser {
     actionId: number;
     userId: string;
     secUid: string;

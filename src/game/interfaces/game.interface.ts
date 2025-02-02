@@ -1,16 +1,10 @@
+import { Question, Option } from '@prisma/client';
+
 export interface GameState {
   isActive: boolean;
-  currentQuestion?: {
-    correctOptionId: string;
-    id: string;
-    currentQuestionNumber: number;
-    totalQuestions: number;
-    text: string;
-    options: Array<{
-      id: string;
-      text: string;
-    }>;
-  };
+  gameQuestions: (Question & { Options: Option[] })[];
+  currentQuestion?: Question & { Options: Option[] };
+  currentQuestionNumber: number;
+  totalQuestions: number;
   scores: Map<string, number>;
 }
-

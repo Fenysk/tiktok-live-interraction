@@ -10,18 +10,14 @@ import { GameTimerService } from './services/game-timer.service';
 import { LikeService } from 'src/like/like.service';
 import { ChatMessage } from 'src/tiktok/interface/chat.interface';
 import { LikeMessage } from 'src/tiktok/interface/like.interface';
-import { GiftMessage } from 'src/tiktok/interface/gift.interface';
+import { GiftMessage as TiktokGiftMessage } from 'src/tiktok/interface/gift.interface';
 import { Option, Question } from '@prisma/client';
-import { ScoreService } from 'src/score/score.service';
 import { GameEventService } from './services/game-event.service';
 
 @Injectable()
 export class GameService {
     private TOTAL_QUESTIONS: number = GAME_CONSTANTS.TOTAL_QUESTIONS;
-    private gameState: GameState;
-    private currentQuestionNumber: number;
-    private isCurrentQuestionAnswered: boolean = false;
-    private gameQuestions: (Question & { Options: Option[] })[] = [];
+    private QUESTION_DURATION: number = GAME_CONSTANTS.QUESTION_DURATION;
 
     constructor(
         private readonly questionsService: QuestionsService,
@@ -30,11 +26,9 @@ export class GameService {
         private readonly gameStateService: GameStateService,
         private readonly gameTimerService: GameTimerService,
         private readonly likeService: LikeService,
-        private readonly scoreService: ScoreService,
         private readonly gameEventService: GameEventService
     ) {
         this.initializeListeners();
-        this.gameState = this.gameStateService.getCurrentState();
     }
 
     private initializeListeners(): void {
@@ -44,30 +38,29 @@ export class GameService {
     }
 
     private handleChatMessage(data: ChatMessage): void {
-        if (this.gameState.isActive && this.gameState.currentQuestion) {
-            this.handleAnswer(data.userId, data.nickname, data.profilePictureUrl, data.comment);
+        if (this.gameStateService.getIsGameActive() && this.gameStateService.getCurrentQuestion()) {
+            this.handleAnswer(data.uniqueId, data.nickname, data.profilePictureUrl, data.comment);
         }
     }
 
-    private handleLikeMessage(data: LikeMessage): void {
-        if (!this.gameState.isActive) {
-            this.likeService.addLikes(data.likeCount);
-            const totalLikes = this.likeService.getLikeCount();
-            this.websocketsGateway.emitTotalLikes(totalLikes);
+    private handleLikeMessage(newLikeMessage: LikeMessage): void {
+        if (!this.gameStateService.getIsGameActive()) {
+            const newTotalLikes = this.likeService.addLikesToTotal(newLikeMessage.likeCount);
+            this.websocketsGateway.emitTotalLikesFromWaitingRoom({totalLikes: newTotalLikes});
 
             if (this.likeService.shouldStartGame()) {
                 this.likeService.resetLikeCount();
                 this.startGame({
                     numberOfQuestions: this.TOTAL_QUESTIONS,
-                    defaultQuestionTimeout: GAME_CONSTANTS.QUESTION_DURATION
+                    defaultQuestionTimeout: this.QUESTION_DURATION
                 });
             }
         }
     }
 
-    private handleGiftMessage(data: GiftMessage): void {
+    private handleGiftMessage(data: TiktokGiftMessage): void {
         this.websocketsGateway.emitGiftReceived({
-            userId: data.userId,
+            uniqueId: data.uniqueId,
             nickname: data.nickname,
             profilePictureUrl: data.profilePictureUrl,
             giftName: data.giftName,
@@ -76,106 +69,107 @@ export class GameService {
     }
 
     async startGame(dto: StartGameRequest): Promise<void> {
-        if (this.gameState.isActive) this.stopGame();
+        if (this.gameStateService.getIsGameActive()) {
+            this.stopGame();
+        }
 
-        this.initializeGameState();
+        this.gameStateService.resetGameState({isActive: true});
         this.TOTAL_QUESTIONS = dto.numberOfQuestions || GAME_CONSTANTS.TOTAL_QUESTIONS;
-        this.currentQuestionNumber = 0;
 
-        this.gameQuestions = await this.fetchQuestions();
-        if (this.gameQuestions.length < this.TOTAL_QUESTIONS) return this.stopGame();
+        const gameQuestions = await this.fetchQuestions();
+        if (gameQuestions.length < this.TOTAL_QUESTIONS) {
+            return this.stopGame();
+        }
+
+        this.gameStateService.setGameQuestions(gameQuestions);
+
+        this.gameStateService.updateGameState({ currentQuestionNumber: 1 });
 
         await this.nextQuestion();
-    }
-
-    private initializeGameState(): void {
-        this.gameState = {
-            isActive: true,
-            currentQuestion: null,
-            scores: new Map<string, number>()
-        };
     }
 
     private async fetchQuestions(): Promise<(Question & { Options: Option[] })[]> {
         const questions: (Question & { Options: Option[] })[] = [];
         for (let i = 0; i < this.TOTAL_QUESTIONS; i++) {
             const question = await this.questionsService.getRandomQuestion();
-            if (!question) break;
+            if (!question) {
+                break;
+            }
             questions.push(question);
         }
         return questions;
     }
 
     stopGame(): void {
-        this.gameState.isActive = false;
-        this.gameState.currentQuestion = null;
-        this.scoreService.resetScores();
+        this.gameStateService.setIsActive(false);
+        this.gameStateService.setCurrentQuestion(null);
+        this.gameStateService.resetScores();
         this.gameTimerService.stopTimer();
         this.gameTimerService.resetTimer();
-        this.gameQuestions = [];
-        this.currentQuestionNumber = 0;
-        this.isCurrentQuestionAnswered = false;
-        this.gameEventService.emitGameEnded(Array.from(this.scoreService.getScores().entries()));
+        this.gameStateService.setGameQuestions([]);
+        this.gameEventService.emitGameEnded(Array.from(this.gameStateService.getScores().entries()));
     }
 
     async nextQuestion(): Promise<void> {
-        if (!this.gameState.isActive) return;
+        if (!this.gameStateService.getIsGameActive()) {
+            return;
+        }
 
-        this.currentQuestionNumber++;
+        const currentQuestionNumber = this.gameStateService.getCurrentQuestionNumber();
 
-        if (this.currentQuestionNumber > this.TOTAL_QUESTIONS) {
+        if (currentQuestionNumber > this.TOTAL_QUESTIONS) {
             return this.stopGame();
         }
 
-        const currentQuestion = this.gameQuestions[this.currentQuestionNumber - 1];
+        const currentQuestion = this.gameStateService.getGameQuestions()[currentQuestionNumber - 1];
 
-        this.gameState.currentQuestion = {
+        this.gameStateService.setCurrentQuestion({
             id: currentQuestion.id,
-            currentQuestionNumber: this.currentQuestionNumber,
+            currentQuestionNumber: currentQuestionNumber,
             totalQuestions: this.TOTAL_QUESTIONS,
             text: currentQuestion.text,
             options: currentQuestion.Options,
             correctOptionId: currentQuestion.correctOptionId
-        };
+        });
 
-        this.isCurrentQuestionAnswered = false;
-
-        this.gameEventService.emitNewQuestion(this.gameState.currentQuestion);
+        this.gameEventService.emitNewQuestion(this.gameStateService.getCurrentQuestion());
         this.gameTimerService.startTimer();
+
+        this.gameStateService.updateGameState({ currentQuestionNumber: currentQuestionNumber + 1 });
     }
 
-    private async handleCorrectAnswer(userId: string, nickname: string, profilePictureUrl: string): Promise<void> {
+    private async handleCorrectAnswer(uniqueId: string, nickname: string, profilePictureUrl: string): Promise<void> {
         this.gameTimerService.stopTimer();
-        this.isCurrentQuestionAnswered = true;
-
-        this.scoreService.updateScore(userId, 1);
-
-        this.gameEventService.emitCorrectAnswer(userId, nickname, profilePictureUrl);
+        const newScore = this.gameStateService.updateScore(uniqueId, 1);
+        this.gameEventService.emitCorrectAnswer(uniqueId, nickname, profilePictureUrl, newScore);
     }
 
-    async handleAnswer(userId: string, nickname: string, profilePictureUrl: string, answer: string): Promise<boolean> {
-        if (!this.gameState.currentQuestion || this.isCurrentQuestionAnswered) return false;
+    async handleAnswer(uniqueId: string, nickname: string, profilePictureUrl: string, answer: string): Promise<boolean> {
+        const isQuestionReadyToAnwser = this.gameStateService.getCurrentQuestion() && !this.gameStateService.getCurrentQuestion().isAnswered
+        if (!isQuestionReadyToAnwser) {
+            return false;
+        }
 
-        const correctOption = this.gameState.currentQuestion.options.find(
-            option => option.id === this.gameState.currentQuestion.correctOptionId
+        const correctOption = this.gameStateService.getCurrentQuestion().options.find(
+            option => option.id === this.gameStateService.getCurrentQuestion().correctOptionId
         );
 
         const normalizedAnswer = answer.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
         const normalizedCorrectOption = correctOption.text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
 
         if (normalizedAnswer === normalizedCorrectOption) {
-            await this.handleCorrectAnswer(userId, nickname, profilePictureUrl);
+            await this.handleCorrectAnswer(uniqueId, nickname, profilePictureUrl);
             return true;
         }
 
         return false;
     }
 
-    getCurrentState(): GameState {
-        return this.gameState;
+    getCurrentGameState(): GameState {
+        return this.gameStateService.getCurrentGameState();
     }
 
     isGameStarted(): boolean {
-        return this.gameState.isActive;
+        return this.gameStateService.getIsGameActive();
     }
 }

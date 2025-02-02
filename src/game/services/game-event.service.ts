@@ -1,18 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { ScoreService } from 'src/score/score.service';
 import { WebsocketsGateway } from 'src/websockets/websockets.gateway';
 
 @Injectable()
 export class GameEventService {
     constructor(
         private readonly websocketsGateway: WebsocketsGateway,
-        private readonly scoreManagerService: ScoreService
     ) {}
 
-    emitCorrectAnswer(userId: string, nickname: string, profilePictureUrl: string): void {
-        const score = this.scoreManagerService.getScores().get(userId) || 0;
+    emitCorrectAnswer(uniqueId: string, nickname: string, profilePictureUrl: string, score: number): void {
         this.websocketsGateway.emitCorrectAnswer({
-            userId,
+            uniqueId,
             nickname,
             profilePictureUrl,
             score
@@ -24,6 +21,6 @@ export class GameEventService {
     }
 
     emitGameEnded(scores: [string, number][]): void {
-        this.websocketsGateway.emitGameEnded(scores);
+        this.websocketsGateway.emitGameEnded({scores});
     }
 }

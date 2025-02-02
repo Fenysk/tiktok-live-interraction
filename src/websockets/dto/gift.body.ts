@@ -1,6 +1,6 @@
-import { IsString, IsNotEmpty } from 'class-validator';
+import { IsString, IsNumber, IsNotEmpty } from 'class-validator';
 
-export class AnswerDto {
+export class NewGiftBody {
     @IsString()
     @IsNotEmpty()
     uniqueId: string;
@@ -8,12 +8,15 @@ export class AnswerDto {
     @IsString()
     @IsNotEmpty()
     nickname: string;
-    
+
     @IsString()
     @IsNotEmpty()
     profilePictureUrl: string;
 
     @IsString()
     @IsNotEmpty()
-    answer: string;
+    giftName: string;
+
+    @IsNumber()
+    diamondCount: number;
   }

@@ -3,14 +3,11 @@ import { GAME_CONSTANTS } from 'src/game/constants/game.constants';
 
 @Injectable()
 export class LikeService {
+    private readonly LIKE_COUNT_TO_START: number = GAME_CONSTANTS.LIKE_COUNT_TO_START;
     private likeCount: number = 0;
-    private readonly likesToStart: number = GAME_CONSTANTS.LIKE_COUNT_TO_START; // 
 
-    addLikes(count: number): void {
+    addLikesToTotal(count: number): number {
         this.likeCount += count;
-    }
-
-    getLikeCount(): number {
         return this.likeCount;
     }
 
@@ -19,6 +16,6 @@ export class LikeService {
     }
 
     shouldStartGame(): boolean {
-        return this.likeCount >= this.likesToStart;
+        return this.likeCount >= this.LIKE_COUNT_TO_START;
     }
 }
