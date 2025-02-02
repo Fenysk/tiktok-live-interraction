@@ -1,13 +1,13 @@
 import { IsString, IsArray, IsNotEmpty, ArrayMinSize, ValidateNested } from 'class-validator';
 import { Type as TransformType, Type } from 'class-transformer';
 
-class OptionDto {
+class OptionRequest {
     @IsString()
     @IsNotEmpty() 
     readonly text: string;
 }
 
-export class CreateQuestionDto {
+export class CreateQuestionRequest {
     @IsString()
     @IsNotEmpty()
     readonly text: string;
@@ -19,6 +19,6 @@ export class CreateQuestionDto {
     @IsArray()
     @ArrayMinSize(2)
     @ValidateNested({ each: true })
-    @TransformType(() => OptionDto)
-    readonly options: OptionDto[];
+    @TransformType(() => OptionRequest)
+    readonly options: OptionRequest[];
 }

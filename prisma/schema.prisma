@@ -7,6 +7,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  uniqueId String @id
+  nickname String
+  profilePictureUrl String?
+
+  Statistic Statistic? @relation("UserToStatistic")
+}
+
 model Question {
   id String @id @default(uuid())
 
@@ -14,7 +22,6 @@ model Question {
   correctOptionId String?
   
   Options Option[] @relation("QuestionToOptions")
-  Answers Answer[] @relation("QuestionToAnswers")
 
   createdAt DateTime @default(now())
 }
@@ -26,26 +33,19 @@ model Option {
   questionId String
   Question   Question @relation("QuestionToOptions", fields: [questionId], references: [id], onDelete: Cascade)
 
-  Answers    Answer[] @relation("OptionToAnswers")
-
   createdAt DateTime @default(now())
 
   @@index([questionId])
 }
 
-model Answer {
-  id String @id @default(uuid())
+model Statistic {
+  uniqueId String @id @map("userId")
+  User   User   @relation("UserToStatistic", fields: [uniqueId], references: [uniqueId], onDelete: Cascade)
 
-  userId String
-
-  questionId String
-  question   Question @relation("QuestionToAnswers", fields: [questionId], references: [id], onDelete: Cascade)
-
-  optionId String
-  option   Option  @relation("OptionToAnswers", fields: [optionId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([questionId])
-  @@index([optionId])
+  lastParticipation DateTime?
+  participationCount Int @default(0)
+  
+  totalScore     Int @default(0)
+  correctAnswers Int @default(0)
+  comboMax       Int @default(0)
 }

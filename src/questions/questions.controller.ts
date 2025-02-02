@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Body, Param, Delete } from '@nestjs/common';   
-import { CreateQuestionDto } from 'src/questions/dto/create-question.dto';
+import { CreateQuestionRequest } from 'src/questions/dto/create-question.request';
 import { QuestionsService } from './questions.service';
 
 @Controller('questions')
@@ -9,12 +9,12 @@ export class QuestionsController {
     ) { }
 
     @Post()
-    async createQuestion(@Body() createQuestionDto: CreateQuestionDto) {
+    async createQuestion(@Body() createQuestionDto: CreateQuestionRequest) {
         return this.questionsService.createQuestion(createQuestionDto);
     }
 
     @Post('multi')
-    async createMultipleQuestion(@Body() createQuestionDto: CreateQuestionDto[]) {
+    async createMultipleQuestion(@Body() createQuestionDto: CreateQuestionRequest[]) {
         return this.questionsService.createMultipleQuestion(createQuestionDto);
     }
 

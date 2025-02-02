@@ -1,75 +1,79 @@
 import { Injectable } from '@nestjs/common';
 import { WebcastPushConnection } from 'tiktok-live-connector';
-import { ChatMessage } from './interface/user.interface';
+import { ChatMessage } from './interface/chat.interface';
 import { GAME_CONSTANTS } from 'src/game/constants/game.constants';
 import { LikeMessage } from './interface/like.interface';
-import { Gift as GiftMessage } from './interface/gift.interface';
-
+import { TikTokEvent } from './enums/tiktok-event.enum';
+import { GiftMessage } from './interface/gift.interface';
+import { NewViewerMessage } from './interface/new-viewer.interface';
+import { SubscriptionMessage } from './interface/subscription.interface';
+import { FollowMessage } from './interface/follow.interface';
+import { ShareMessage } from './interface/share.interface';
 
 @Injectable()
 export class TiktokService {
-    private tiktokUsername = GAME_CONSTANTS.TIKTOK_STREAM_ACCOUNT;
-    private tiktokLiveConnection = new WebcastPushConnection(this.tiktokUsername);
-    private messageHandlers: Array<(userId: string, nickname: string, profilePictureUrl: string, message: string) => void> = [];
-    private likeHandlers: Array<(userId: string, nickname: string, likeCount: number) => void> = [];
-    private giftHandlers: Array<(userId: string, nickname: string, profilePictureUrl: string, giftName: string, diamondCount: number) => void> = [];
-    private reconnectAttempts = 0;
+    private tiktokStreamAccount = GAME_CONSTANTS.TIKTOK_STREAM_ACCOUNT;
+    private tiktokLiveConnection = new WebcastPushConnection(this.tiktokStreamAccount);
+
+    private newViewerCallback: (data: any) => void;
+    private messageCallback: (data: ChatMessage) => void;
+    private likeCallback: (data: LikeMessage) => void;
+    private giftCallback: (data: GiftMessage) => void;
+    private subscriptionCallback: (data: SubscriptionMessage) => void;
+    private followCallback: (data: FollowMessage) => void;
+    private shareCallback: (data: ShareMessage) => void;
+
     private readonly MAX_RECONNECT_ATTEMPTS = 10;
     private readonly RECONNECT_DELAY = 5000;
+
+    private reconnectAttempts = 0;
     private isConnected = false;
 
-    onChatMessage(handler: (userId: string, nickname: string, profilePictureUrl: string, message: string) => void): void {
-        this.messageHandlers.push(handler);
-    }
+    constructor() {
+        this.tiktokLiveConnection.on(TikTokEvent.LIVE_DISCONNECTED, () => {
+            this.isConnected = false;
+            this.handleReconnect();
+        });
 
-    onLike(handler: (userId: string, nickname: string, likeCount: number) => void): void {
-        this.likeHandlers.push(handler);
-    }
+        this.tiktokLiveConnection.on(TikTokEvent.NEW_VIEWER, (data: NewViewerMessage) => {
+            this.newViewerCallback?.(data);
+        });
 
-    onGift(handler: (userId: string, nickname: string, profilePictureUrl:string, giftName: string, diamondCount: number) => void): void {
-        this.giftHandlers.push(handler);
+        this.tiktokLiveConnection.on(TikTokEvent.NEW_MESSAGE, (data: ChatMessage) => {
+            this.messageCallback?.(data);
+        });
+
+        this.tiktokLiveConnection.on(TikTokEvent.NEW_LIKE, (data: LikeMessage) => {
+            this.likeCallback?.(data);
+        });
+
+        this.tiktokLiveConnection.on(TikTokEvent.NEW_GIFT, (data: GiftMessage) => {
+            this.giftCallback?.(data);
+        });
+
+        this.tiktokLiveConnection.on(TikTokEvent.NEW_SUBSCRIPTION, (data: SubscriptionMessage) => {
+            this.subscriptionCallback?.(data);
+        });
+
+        this.tiktokLiveConnection.on(TikTokEvent.FOLLOW, (data: FollowMessage) => {
+            this.followCallback?.(data);
+        });
+
+        this.tiktokLiveConnection.on(TikTokEvent.SHARE, (data: ShareMessage) => {
+            this.shareCallback?.(data);
+        });
     }
 
     async initTikTokLiveConnection() {
-        console.log('Connecting to TikTok live...');
-
         if (this.isConnected) {
-            console.info('Already connected to TikTok live');
             return;
         }
 
         try {
             const state = await this.tiktokLiveConnection.connect();
-            console.info(`Connected to roomId ${state.roomId}`);
             this.reconnectAttempts = 0;
             this.isConnected = true;
-
-            this.tiktokLiveConnection.on('chat', (data: ChatMessage) => {
-                this.messageHandlers.forEach(handler =>
-                    handler(data.userId, data.nickname, data.profilePictureUrl, data.comment)
-                );
-            });
-
-            this.tiktokLiveConnection.on('disconnected', () => {
-                console.warn('Disconnected from TikTok live');
-                this.isConnected = false;
-                this.handleReconnect();
-            });
-
-            this.tiktokLiveConnection.on('like', (data: LikeMessage) => {
-                this.likeHandlers.forEach(handler =>
-                    handler(data.userId, data.nickname, data.likeCount)
-                );
-            });
-
-            this.tiktokLiveConnection.on('gift', (data: GiftMessage) => {
-                this.giftHandlers.forEach(handler =>
-                    handler(data.userId, data.nickname, data.profilePictureUrl, data.giftName, data.diamondCount)
-                );
-            });
-
         } catch (err) {
-            console.error('Failed to connect', err);
             this.isConnected = false;
             this.handleReconnect();
         }
@@ -77,15 +81,44 @@ export class TiktokService {
 
     private async handleReconnect(): Promise<void> {
         if (this.reconnectAttempts >= this.MAX_RECONNECT_ATTEMPTS) {
-            console.error('Max reconnection attempts reached');
+            console.error('Max reconnect attempts reached');
             return;
         }
 
         this.reconnectAttempts++;
-        console.info(`Attempting to reconnect (${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS})...`);
 
         setTimeout(async () => {
-            await this.initTikTokLiveConnection();
+            try {
+                await this.initTikTokLiveConnection();
+            } catch (err) {
+                console.error('Reconnect failed:', err);
+                this.handleReconnect();
+            }
         }, this.RECONNECT_DELAY);
     }
+
+    setNewViewerCallback(callback: (data: NewViewerMessage) => void): void {
+        this.newViewerCallback = callback;
+    }
+
+    setMessageCallback(callback: (data: ChatMessage) => void): void {
+        this.messageCallback = callback;
+    }
+
+    setLikeCallback(callback: (data: LikeMessage) => void): void {
+        this.likeCallback = callback;
+    }
+
+    setGiftCallback(callback: (data: GiftMessage) => void): void {
+        this.giftCallback = callback;
+    }
+
+    setFollowCallback(callback: (data: FollowMessage) => void): void {
+        this.followCallback = callback;
+    }
+
+    setShareCallback(callback: (data: ShareMessage) => void): void {
+        this.shareCallback = callback;
+    }
+
 }

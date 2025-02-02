@@ -1,6 +1,6 @@
 import { IsNumber, IsOptional, Min } from 'class-validator';
 
-export class StartGameDto {
+export class StartGameRequest {
   @IsNumber()
   @IsOptional()
   @Min(1)

@@ -1,8 +1,6 @@
-import { FollowInfo, UserDetails, UserBadge } from "./user.interface";
+import { FollowInfo, UserBadge, UserDetails } from "./user.interface";
 
-export interface LikeMessage {
-    likeCount: number;
-    totalLikeCount: number;
+export interface ShareMessage {
     userId: string;
     secUid: string;
     uniqueId: string;
@@ -10,15 +8,12 @@ export interface LikeMessage {
     profilePictureUrl: string;
     followRole: number;
     userBadges: UserBadge[];
-    userSceneTypes: number[];
     userDetails: UserDetails;
     followInfo: FollowInfo;
     isModerator: boolean;
     isNewGifter: boolean;
     isSubscriber: boolean;
-    topGifterRank: any;
-    gifterLevel: number;
-    teamMemberLevel: number;
+    topGifterRank: number | null;
     msgId: string;
     createTime: string;
     displayType: string;

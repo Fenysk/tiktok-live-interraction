@@ -10,6 +10,7 @@ import { LikeModule } from './like/like.module';
 import { QuestionsModule } from './questions/questions.module';
 import { AnswersModule } from './answers/answers.module';
 import { KeypressModule } from './keypress/keypress.module';
+import { ScoreModule } from './score/score.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { KeypressModule } from './keypress/keypress.module';
     QuestionsModule,
     AnswersModule,
     KeypressModule,
+    ScoreModule,
   ],
   controllers: [AppController],
   providers: [AppService],

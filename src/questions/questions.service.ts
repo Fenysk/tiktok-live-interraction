@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { CreateQuestionDto } from './dto/create-question.dto';
+import { CreateQuestionRequest } from './dto/create-question.request';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { Option, Question } from '@prisma/client';
 
 @Injectable()
 export class QuestionsService {
@@ -8,7 +9,7 @@ export class QuestionsService {
         private readonly prismaService: PrismaService,
     ) { }
 
-    async createQuestion(createQuestionDto: CreateQuestionDto) {
+    async createQuestion(createQuestionDto: CreateQuestionRequest) {
         const { text, correctOptionIndex, options } = createQuestionDto;
 
         return this.prismaService.$transaction(async (tx) => {
@@ -41,7 +42,7 @@ export class QuestionsService {
         });
     }
 
-    async createMultipleQuestion(createQuestionDto: CreateQuestionDto[]) {
+    async createMultipleQuestion(createQuestionDto: CreateQuestionRequest[]) {
         return this.prismaService.$transaction(async (tx) => {
             const createdQuestions = await Promise.all(
                 createQuestionDto.map(async (questionDto) => {
@@ -102,7 +103,7 @@ export class QuestionsService {
         });
     }
 
-    async getRandomQuestion() {
+    async getRandomQuestion(): Promise<(Question & { Options: Option[] })> {
         const count = await this.prismaService.question.count();
 
         if (count === 0) {
@@ -127,7 +128,6 @@ export class QuestionsService {
             where: { id },
             include: {
                 Options: true,
-                Answers: true,
             }
         });
     }

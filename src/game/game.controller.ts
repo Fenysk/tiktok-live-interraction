@@ -1,6 +1,6 @@
 import { Controller, Post, Body, HttpCode, HttpStatus, Get } from '@nestjs/common';
 import { GameService } from './game.service';
-import { StartGameDto } from './dto/start-game.dto';
+import { StartGameRequest } from './dto/start-game.request';
 
 @Controller('game')
 export class GameController {
@@ -9,7 +9,7 @@ export class GameController {
   @HttpCode(HttpStatus.OK)
   @Post('start')
   async startGame(
-    @Body() startGameDto: StartGameDto
+    @Body() startGameDto: StartGameRequest
   ): Promise<void> {
     return this.gameService.startGame(startGameDto);
   }

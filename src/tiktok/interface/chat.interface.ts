@@ -1,8 +1,8 @@
 import { FollowInfo, UserDetails, UserBadge } from "./user.interface";
 
-export interface LikeMessage {
-    likeCount: number;
-    totalLikeCount: number;
+export interface ChatMessage {
+    emotes: any[];
+    comment: string;
     userId: string;
     secUid: string;
     uniqueId: string;
@@ -21,6 +21,4 @@ export interface LikeMessage {
     teamMemberLevel: number;
     msgId: string;
     createTime: string;
-    displayType: string;
-    label: string;
 }

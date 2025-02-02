@@ -1,4 +1,6 @@
-export interface Gift {
+import { FollowInfo, UserBadge, UserDetails } from "./user.interface";
+
+export interface GiftMessage {
     giftId: number;
     repeatCount: number;
     groupId: string;
@@ -8,24 +10,10 @@ export interface Gift {
     nickname: string;
     profilePictureUrl: string;
     followRole: number;
-    userBadges: Array<{
-        type: string;
-        badgeSceneType: number;
-        displayType: number;
-        url: string;
-    }>;
+    userBadges: UserBadge[];
     userSceneTypes: number[];
-    userDetails: {
-        createTime: string;
-        bioDescription: string;
-        profilePictureUrls: string[];
-    };
-    followInfo: {
-        followingCount: number;
-        followerCount: number;
-        followStatus: number;
-        pushStatus: number;
-    };
+    userDetails: UserDetails;
+    followInfo: FollowInfo;
     isModerator: boolean;
     isNewGifter: boolean;
     isSubscriber: boolean;
@@ -37,12 +25,7 @@ export interface Gift {
     displayType: string;
     label: string;
     repeatEnd: boolean;
-    gift: {
-        gift_id: number;
-        repeat_count: number;
-        repeat_end: number;
-        gift_type: number;
-    };
+    gift: Gift;
     describe: string;
     giftType: number;
     diamondCount: number;
@@ -50,4 +33,11 @@ export interface Gift {
     giftPictureUrl: string;
     timestamp: number;
     receiverUserId: string;
+}
+
+export interface Gift {
+    gift_id: number;
+    repeat_count: number;
+    repeat_end: number;
+    gift_type: number;
 }

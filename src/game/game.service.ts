@@ -3,21 +3,25 @@ import { GameState } from './interfaces/game.interface';
 import { TiktokService } from 'src/tiktok/tiktok.service';
 import { QuestionsService } from 'src/questions/questions.service';
 import { WebsocketsGateway } from 'src/websockets/websockets.gateway';
-import { StartGameDto } from './dto/start-game.dto';
+import { StartGameRequest } from './dto/start-game.request';
 import { GAME_CONSTANTS } from './constants/game.constants';
 import { GameStateService } from './services/game-state.service';
 import { GameTimerService } from './services/game-timer.service';
 import { LikeService } from 'src/like/like.service';
+import { ChatMessage } from 'src/tiktok/interface/chat.interface';
+import { LikeMessage } from 'src/tiktok/interface/like.interface';
+import { GiftMessage } from 'src/tiktok/interface/gift.interface';
+import { Option, Question } from '@prisma/client';
+import { ScoreService } from 'src/score/score.service';
+import { GameEventService } from './services/game-event.service';
 
 @Injectable()
 export class GameService {
+    private TOTAL_QUESTIONS: number = GAME_CONSTANTS.TOTAL_QUESTIONS;
     private gameState: GameState;
-
-    private totalQuestions: number = GAME_CONSTANTS.TOTAL_QUESTION;
     private currentQuestionNumber: number;
-    private isQuestionAnswered: boolean = false;
-    private gameQuestions: any[] = [];
-    private lastGameSettings: StartGameDto;
+    private isCurrentQuestionAnswered: boolean = false;
+    private gameQuestions: (Question & { Options: Option[] })[] = [];
 
     constructor(
         private readonly questionsService: QuestionsService,
@@ -25,102 +29,93 @@ export class GameService {
         private readonly websocketsGateway: WebsocketsGateway,
         private readonly gameStateService: GameStateService,
         private readonly gameTimerService: GameTimerService,
-        private readonly likeService: LikeService, 
+        private readonly likeService: LikeService,
+        private readonly scoreService: ScoreService,
+        private readonly gameEventService: GameEventService
     ) {
-        this.initializeChatListener();
-        this.initializeLikeListener();
-        this.initializeGiftListener();
+        this.initializeListeners();
         this.gameState = this.gameStateService.getCurrentState();
     }
 
-    private initializeChatListener(): void {
-        this.tiktokService.onChatMessage((userId: string, nickname: string, profilePictureUrl: string, message: string) => {
-            if (this.gameState.isActive && this.gameState.currentQuestion) {
-                this.handleAnswer(userId, nickname, profilePictureUrl, message);
+    private initializeListeners(): void {
+        this.tiktokService.setMessageCallback(this.handleChatMessage.bind(this));
+        this.tiktokService.setLikeCallback(this.handleLikeMessage.bind(this));
+        this.tiktokService.setGiftCallback(this.handleGiftMessage.bind(this));
+    }
+
+    private handleChatMessage(data: ChatMessage): void {
+        if (this.gameState.isActive && this.gameState.currentQuestion) {
+            this.handleAnswer(data.userId, data.nickname, data.profilePictureUrl, data.comment);
+        }
+    }
+
+    private handleLikeMessage(data: LikeMessage): void {
+        if (!this.gameState.isActive) {
+            this.likeService.addLikes(data.likeCount);
+            const totalLikes = this.likeService.getLikeCount();
+            this.websocketsGateway.emitTotalLikes(totalLikes);
+
+            if (this.likeService.shouldStartGame()) {
+                this.likeService.resetLikeCount();
+                this.startGame({
+                    numberOfQuestions: this.TOTAL_QUESTIONS,
+                    defaultQuestionTimeout: GAME_CONSTANTS.QUESTION_DURATION
+                });
             }
+        }
+    }
+
+    private handleGiftMessage(data: GiftMessage): void {
+        this.websocketsGateway.emitGiftReceived({
+            userId: data.userId,
+            nickname: data.nickname,
+            profilePictureUrl: data.profilePictureUrl,
+            giftName: data.giftName,
+            diamondCount: data.diamondCount
         });
     }
 
-    private initializeLikeListener(): void {
-        this.tiktokService.onLike((userId: string, nickname: string, likeCount: number) => {
-            if (!this.gameState.isActive) {
-                this.likeService.addLikes(likeCount); // Utiliser le LikeService
-                const totalLikes = this.likeService.getLikeCount();
-                this.websocketsGateway.emitTotalLikes(totalLikes);
+    async startGame(dto: StartGameRequest): Promise<void> {
+        if (this.gameState.isActive) this.stopGame();
 
-                if (this.likeService.shouldStartGame()) {
-                    console.log('Starting game due to like threshold reached!');
-                    this.likeService.resetLikeCount(); // Réinitialiser le compteur de likes
-                    this.startGame({
-                        numberOfQuestions: this.totalQuestions,
-                        defaultQuestionTimeout: GAME_CONSTANTS.QUESTION_DURATION
-                    });
-                }
-            }
-        });
+        this.initializeGameState();
+        this.TOTAL_QUESTIONS = dto.numberOfQuestions || GAME_CONSTANTS.TOTAL_QUESTIONS;
+        this.currentQuestionNumber = 0;
+
+        this.gameQuestions = await this.fetchQuestions();
+        if (this.gameQuestions.length < this.TOTAL_QUESTIONS) return this.stopGame();
+
+        await this.nextQuestion();
     }
 
-    private initializeGiftListener(): void {
-        this.tiktokService.onGift((userId: string, nickname: string, profilePictureUrl: string, giftName: string, diamondCount: number) => {
-            console.log(`Gift received from ${nickname} (${userId}): ${giftName} with ${diamondCount} diamonds!`);
-            this.websocketsGateway.emitGiftReceived({
-                userId,
-                nickname,
-                profilePictureUrl,
-                giftName,
-                diamondCount
-            });
-        });
-    }
-
-    private startTimer(): void {
-        this.gameTimerService.startTimer();
-    }
-
-    private stopTimer(): void {
-        this.gameTimerService.stopTimer();
-    }
-
-    private resetTimer(): void {
-        this.gameTimerService.resetTimer();
-    }
-
-    async startGame(dto: StartGameDto): Promise<void> {
-        if (this.gameState.isActive)
-            this.stopGame();
-
-        this.lastGameSettings = dto;
+    private initializeGameState(): void {
         this.gameState = {
             isActive: true,
             currentQuestion: null,
             scores: new Map<string, number>()
         };
+    }
 
-        this.totalQuestions = dto.numberOfQuestions || GAME_CONSTANTS.TOTAL_QUESTION;
-        this.currentQuestionNumber = 0;
-
-        this.gameQuestions = [];
-        for (let i = 0; i < this.totalQuestions; i++) {
+    private async fetchQuestions(): Promise<(Question & { Options: Option[] })[]> {
+        const questions: (Question & { Options: Option[] })[] = [];
+        for (let i = 0; i < this.TOTAL_QUESTIONS; i++) {
             const question = await this.questionsService.getRandomQuestion();
-            if (!question)
-                return this.stopGame();
-
-            this.gameQuestions.push(question);
+            if (!question) break;
+            questions.push(question);
         }
-
-        await this.nextQuestion();
+        return questions;
     }
 
     stopGame(): void {
         this.gameState.isActive = false;
         this.gameState.currentQuestion = null;
-        this.gameState.scores = new Map<string, number>();
-        this.stopTimer();
-        this.resetTimer();
+        this.scoreService.resetScores();
+        this.gameTimerService.stopTimer();
+        this.gameTimerService.resetTimer();
         this.gameQuestions = [];
         this.currentQuestionNumber = 0;
-        this.isQuestionAnswered = false;
-        this.websocketsGateway.emitGameEnded(Array.from(this.gameState.scores.entries()));
+        this.isCurrentQuestionAnswered = false;
+        this.gameEventService.emitGameEnded(Array.from(this.scoreService.getScores().entries()));
     }
 
     async nextQuestion(): Promise<void> {
@@ -128,9 +123,7 @@ export class GameService {
 
         this.currentQuestionNumber++;
 
-        if (this.currentQuestionNumber > this.totalQuestions) {
-            console.log('Game finished! Final scores:');
-            console.log(Array.from(this.gameState.scores.entries()));
+        if (this.currentQuestionNumber > this.TOTAL_QUESTIONS) {
             return this.stopGame();
         }
 
@@ -139,47 +132,38 @@ export class GameService {
         this.gameState.currentQuestion = {
             id: currentQuestion.id,
             currentQuestionNumber: this.currentQuestionNumber,
-            totalQuestions: this.totalQuestions,
+            totalQuestions: this.TOTAL_QUESTIONS,
             text: currentQuestion.text,
             options: currentQuestion.Options,
             correctOptionId: currentQuestion.correctOptionId
         };
 
-        this.isQuestionAnswered = false;
+        this.isCurrentQuestionAnswered = false;
 
-        console.log(`Question ${this.currentQuestionNumber}/${this.totalQuestions}:`, this.gameState.currentQuestion.text);
-        console.log('Options:', this.gameState.currentQuestion.options.map(opt => opt.text));
-
-        this.websocketsGateway.emitNewQuestion(this.gameState.currentQuestion);
-        this.startTimer();
+        this.gameEventService.emitNewQuestion(this.gameState.currentQuestion);
+        this.gameTimerService.startTimer();
     }
 
     private async handleCorrectAnswer(userId: string, nickname: string, profilePictureUrl: string): Promise<void> {
-        this.stopTimer();
-        this.isQuestionAnswered = true;
+        this.gameTimerService.stopTimer();
+        this.isCurrentQuestionAnswered = true;
 
-        const currentScore = this.gameState.scores.get(userId) || 0;
-        const newScore = currentScore + 1;
-        this.gameState.scores.set(userId, newScore);
+        this.scoreService.updateScore(userId, 1);
 
-        console.log(`${nickname} (${userId}) scored! New score: ${newScore}`);
-
-        this.websocketsGateway.emitCorrectAnswer({
-            userId,
-            nickname,
-            profilePictureUrl,
-            score: newScore
-        });
+        this.gameEventService.emitCorrectAnswer(userId, nickname, profilePictureUrl);
     }
 
-    async handleAnswer(userId: string, nickname: string, profilePictureUrl:string, answer: string): Promise<boolean> {
-        if (!this.gameState.currentQuestion || this.isQuestionAnswered) return false;
+    async handleAnswer(userId: string, nickname: string, profilePictureUrl: string, answer: string): Promise<boolean> {
+        if (!this.gameState.currentQuestion || this.isCurrentQuestionAnswered) return false;
 
         const correctOption = this.gameState.currentQuestion.options.find(
             option => option.id === this.gameState.currentQuestion.correctOptionId
         );
 
-        if (answer.toLowerCase().replace(/[^a-zA-Z0-9]/g, '') === correctOption.text.toLowerCase().replace(/[^a-zA-Z0-9]/g, '')) {
+        const normalizedAnswer = answer.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
+        const normalizedCorrectOption = correctOption.text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
+
+        if (normalizedAnswer === normalizedCorrectOption) {
             await this.handleCorrectAnswer(userId, nickname, profilePictureUrl);
             return true;
         }
