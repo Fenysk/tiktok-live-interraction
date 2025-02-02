@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { GameState } from './interfaces/game.interface';
 import { TiktokService } from 'src/tiktok/tiktok.service';
 import { QuestionsService } from 'src/questions/questions.service';
@@ -13,6 +13,7 @@ import { LikeMessage } from 'src/tiktok/interface/like.interface';
 import { GiftMessage as TiktokGiftMessage } from 'src/tiktok/interface/gift.interface';
 import { Option, Question } from '@prisma/client';
 import { GameEventService } from './services/game-event.service';
+import { StatisticsService } from 'src/statistics/statistics.service';
 
 @Injectable()
 export class GameService {
@@ -20,13 +21,14 @@ export class GameService {
     private QUESTION_DURATION: number = GAME_CONSTANTS.QUESTION_DURATION;
 
     constructor(
+        private readonly websocketsGateway: WebsocketsGateway,
         private readonly questionsService: QuestionsService,
         private readonly tiktokService: TiktokService,
-        private readonly websocketsGateway: WebsocketsGateway,
         private readonly gameStateService: GameStateService,
         private readonly gameTimerService: GameTimerService,
         private readonly likeService: LikeService,
-        private readonly gameEventService: GameEventService
+        private readonly gameEventService: GameEventService,
+        private readonly statisticsService: StatisticsService,
     ) {
         this.initializeListeners();
     }
@@ -46,7 +48,7 @@ export class GameService {
     private handleLikeMessage(newLikeMessage: LikeMessage): void {
         if (!this.gameStateService.getIsGameActive()) {
             const newTotalLikes = this.likeService.addLikesToTotal(newLikeMessage.likeCount);
-            this.websocketsGateway.emitTotalLikesFromWaitingRoom({totalLikes: newTotalLikes});
+            this.websocketsGateway.emitTotalLikesFromWaitingRoom({ totalLikes: newTotalLikes });
 
             if (this.likeService.shouldStartGame()) {
                 this.likeService.resetLikeCount();
@@ -73,7 +75,7 @@ export class GameService {
             this.stopGame();
         }
 
-        this.gameStateService.resetGameState({isActive: true});
+        this.gameStateService.resetGameState({ isActive: true });
         this.TOTAL_QUESTIONS = dto.numberOfQuestions || GAME_CONSTANTS.TOTAL_QUESTIONS;
 
         const gameQuestions = await this.fetchQuestions();
@@ -104,6 +106,7 @@ export class GameService {
         this.gameStateService.setIsActive(false);
         this.gameStateService.setCurrentQuestion(null);
         this.gameStateService.resetScores();
+        this.gameStateService.resetAllCombos();
         this.gameTimerService.stopTimer();
         this.gameTimerService.resetTimer();
         this.gameStateService.setGameQuestions([]);
@@ -140,8 +143,11 @@ export class GameService {
 
     private async handleCorrectAnswer(uniqueId: string, nickname: string, profilePictureUrl: string): Promise<void> {
         this.gameTimerService.stopTimer();
-        const newScore = this.gameStateService.updateScore(uniqueId, 1);
-        this.gameEventService.emitCorrectAnswer(uniqueId, nickname, profilePictureUrl, newScore);
+        const combo = this.gameStateService.getCombos().get(uniqueId) || 0;
+        const newScore = this.gameStateService.updateScore(uniqueId, 10 * (1 + combo * 0.2));
+        const newCombo = this.gameStateService.updateCombo(uniqueId, 1);
+        this.gameEventService.emitCorrectAnswer({uniqueId, nickname, profilePictureUrl, score: newScore, combo: newCombo});
+        this.statisticsService.incrementUserCorrectAnswers(uniqueId);
     }
 
     async handleAnswer(uniqueId: string, nickname: string, profilePictureUrl: string, answer: string): Promise<boolean> {
@@ -149,6 +155,8 @@ export class GameService {
         if (!isQuestionReadyToAnwser) {
             return false;
         }
+
+        this.statisticsService.updateUserLastParticipation(uniqueId);
 
         const correctOption = this.gameStateService.getCurrentQuestion().options.find(
             option => option.id === this.gameStateService.getCurrentQuestion().correctOptionId

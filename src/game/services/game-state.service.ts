@@ -25,7 +25,8 @@ export class GameStateService {
             currentQuestion: null,
             currentQuestionNumber: 0,
             totalQuestions: 0,
-            scores: new Map<string, number>()
+            scores: new Map<string, number>(),
+            combos: new Map<string, number>()
         };
     }
 
@@ -70,5 +71,20 @@ export class GameStateService {
 
     setGameQuestions(questions: (Question & { Options: Option[] })[]): void {
         this.gameState.gameQuestions = questions;
+    }
+
+    updateCombo(userId: string, combo: number): number {
+        const currentCombo = this.gameState.combos.get(userId) || 0;
+        const newCombo = currentCombo + combo;
+        this.gameState.combos.set(userId, newCombo);
+        return newCombo;
+    }
+
+    resetAllCombos(): void {
+        this.gameState.combos = new Map<string, number>();
+    }
+
+    getCombos(): Map<string, number> {
+        return this.gameState.combos;
     }
 }

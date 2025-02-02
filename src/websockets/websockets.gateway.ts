@@ -5,14 +5,13 @@ import {
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger } from '@nestjs/common';
+import { forwardRef, Inject, Logger } from '@nestjs/common';
 import { QuestionBody as NewQuestionBody } from './dto/question.body';
 import { CorrectAnswerBody } from './dto/correct-answer.body';
 import { FinalScoresBody } from './dto/final-scores.body';
 import { TotalLikesFromWaitingRoomBody } from './dto/total-likes-from-waiting-room.body';
 import { NewGiftBody } from './dto/gift.body';
-
-
+import { GameStateService } from '../game/services/game-state.service';
 
 @WebSocketGateway({
   cors: {
@@ -23,6 +22,10 @@ export class WebsocketsGateway implements OnGatewayConnection, OnGatewayDisconne
   @WebSocketServer() server: Server;
   private logger = new Logger('WebsocketsGateway');
 
+  constructor(
+    private readonly gameStateService: GameStateService
+  ) {}
+
   handleConnection = (client: Socket) => this.logger.log(`Client connected: ${client.id}`);
   handleDisconnect = (client: Socket) => this.logger.log(`Client disconnected: ${client.id}`);
 
@@ -32,9 +35,16 @@ export class WebsocketsGateway implements OnGatewayConnection, OnGatewayDisconne
   }
 
   emitNewQuestion = (data: NewQuestionBody) => this.emit('newQuestion', data);
-  emitQuestionTimeout = () => this.emit('questionTimeout', null);
+  emitQuestionTimeout = () => {
+    this.emit('questionTimeout', null);
+    this.resetCombo();
+  }
   emitCorrectAnswer = (data: CorrectAnswerBody) => this.emit('correctAnswer', data);
   emitGameEnded = (data: FinalScoresBody) => this.emit('gameEnded', data);
   emitTotalLikesFromWaitingRoom = (data: TotalLikesFromWaitingRoomBody) => this.emit('totalLikes', data);
   emitGiftReceived = (data: NewGiftBody) => this.emit('giftReceived', data);
+
+  resetCombo(): void {
+    this.gameStateService.resetAllCombos();
+  }
 }

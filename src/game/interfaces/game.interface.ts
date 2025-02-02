@@ -7,4 +7,5 @@ export interface GameState {
   currentQuestionNumber: number;
   totalQuestions: number;
   scores: Map<string, number>;
+  combos: Map<string, number>;
 }

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { TiktokService } from 'src/tiktok/tiktok.service';
 import { NewViewerMessage } from 'src/tiktok/interface/new-viewer.interface';
 import { TiktokUser } from 'src/tiktok/interface/user.interface';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class UsersService {
@@ -9,6 +10,7 @@ export class UsersService {
 
     constructor(
         private readonly tiktokService: TiktokService,
+        private readonly prismaService: PrismaService,
     ) {
         this.initializeListeners();
     }
@@ -17,8 +19,24 @@ export class UsersService {
         this.tiktokService.setNewViewerCallback(this.handleNewViewer.bind(this));
     }
 
-    private handleNewViewer(data: NewViewerMessage): void {
+    async handleNewViewer(data: NewViewerMessage): Promise<void> {
+        await this.addUserToDatabase(data);
         this.addUserToOnlineUsersList(data);
+    }
+
+    private async addUserToDatabase(newViewerMessage: NewViewerMessage): Promise<void> {
+        await this.prismaService.user.upsert({
+            where: { uniqueId: newViewerMessage.uniqueId },
+            update: {
+                nickname: newViewerMessage.nickname,
+                profilePictureUrl: newViewerMessage.profilePictureUrl,
+            },
+            create: {
+                uniqueId: newViewerMessage.uniqueId,
+                nickname: newViewerMessage.nickname,
+                profilePictureUrl: newViewerMessage.profilePictureUrl,
+            },
+        });
     }
 
     private addUserToOnlineUsersList(newViewerMessage: NewViewerMessage): void {

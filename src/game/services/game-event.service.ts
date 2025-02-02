@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { CorrectAnswerBody } from 'src/websockets/dto/correct-answer.body';
 import { WebsocketsGateway } from 'src/websockets/websockets.gateway';
 
 @Injectable()
@@ -7,13 +8,8 @@ export class GameEventService {
         private readonly websocketsGateway: WebsocketsGateway,
     ) {}
 
-    emitCorrectAnswer(uniqueId: string, nickname: string, profilePictureUrl: string, score: number): void {
-        this.websocketsGateway.emitCorrectAnswer({
-            uniqueId,
-            nickname,
-            profilePictureUrl,
-            score
-        });
+    emitCorrectAnswer(correctAnswerBody: CorrectAnswerBody): void {
+        this.websocketsGateway.emitCorrectAnswer(correctAnswerBody);
     }
 
     emitNewQuestion(question: any): void {

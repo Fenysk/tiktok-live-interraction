@@ -15,4 +15,7 @@ export class CorrectAnswerBody {
 
     @IsNumber()
     score: number;
+
+    @IsNumber()
+    combo: number;
   }

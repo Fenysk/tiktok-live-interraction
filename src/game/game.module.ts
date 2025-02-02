@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { GameService } from './game.service';
 import { TiktokService } from 'src/tiktok/tiktok.service';
 import { GameController } from './game.controller';
@@ -11,7 +11,7 @@ import { GameEventService } from './services/game-event.service';
 
 @Module({
   imports: [
-    WebsocketsModule,
+    forwardRef(() => WebsocketsModule),
     LikeModule,
     QuestionsModule,
   ],
@@ -25,6 +25,7 @@ import { GameEventService } from './services/game-event.service';
   controllers: [GameController],
   exports: [
     GameService,
+    GameStateService,
   ],
 })
 export class GameModule {}

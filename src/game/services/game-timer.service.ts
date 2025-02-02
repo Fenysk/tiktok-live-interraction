@@ -18,6 +18,7 @@ export class GameTimerService {
         this.isPaused = false;
         this.questionTimeout = setTimeout(() => {
             this.websocketsGateway.emitQuestionTimeout();
+            this.websocketsGateway.resetCombo();
         }, this.remainingTime);
     }
 
