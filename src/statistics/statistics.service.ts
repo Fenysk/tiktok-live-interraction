@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Statistic } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 
@@ -8,6 +8,13 @@ export class StatisticsService {
 
     async updateUserLastParticipation(uniqueId: string): Promise<Statistic> {
         try {
+            const user = await this.prismaService.user.findUnique({
+                where: { uniqueId },
+            });
+
+            if (!user)
+                throw new NotFoundException(`User with uniqueId ${uniqueId} does not exist`);
+
             return await this.prismaService.statistic.upsert({
                 where: { uniqueId },
                 update: {
@@ -25,6 +32,13 @@ export class StatisticsService {
 
     async incrementUserCorrectAnswers(uniqueId: string): Promise<Statistic> {
         try {
+            const user = await this.prismaService.user.findUnique({
+                where: { uniqueId },
+            });
+
+            if (!user)
+                throw new NotFoundException(`User with uniqueId ${uniqueId} does not exist`);
+
             return await this.prismaService.statistic.upsert({
                 where: { uniqueId },
                 update: {
