@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { TiktokService } from 'src/tiktok/tiktok.service';
 import { NewViewerMessage } from 'src/tiktok/interface/new-viewer.interface';
 import { TiktokUser } from 'src/tiktok/interface/user.interface';
@@ -6,25 +6,27 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { GameStateService } from 'src/game/services/game-state.service';
 
 @Injectable()
-export class UsersService {
+export class UsersService implements OnModuleInit {
     private onlineUsers: TiktokUser[] = [];
 
     constructor(
         private readonly tiktokService: TiktokService,
         private readonly prismaService: PrismaService,
         private readonly gameStateService: GameStateService,
-    ) {
+    ) {}
+
+    async onModuleInit() {
         this.initializeListeners();
     }
 
     private initializeListeners(): void {
-        this.tiktokService.setNewViewerCallback(this.handleNewViewer.bind(this));
+        this.tiktokService.subscribeToNewViewer(this.handleNewViewer.bind(this));
     }
 
     async handleNewViewer(data: NewViewerMessage): Promise<void> {
         await this.addUserToDatabase(data);
         this.addUserToOnlineUsersList(data);
-        this.gameStateService.updateOnlineUsers(this.onlineUsers);  
+        this.gameStateService.updateOnlineUsers(this.onlineUsers);
     }
 
     private async addUserToDatabase(newViewerMessage: NewViewerMessage): Promise<void> {
@@ -44,7 +46,6 @@ export class UsersService {
 
     private addUserToOnlineUsersList(newViewerMessage: NewViewerMessage): void {
         const user = this.onlineUsers.find(userInList => userInList.uniqueId === newViewerMessage.uniqueId);
-
         if (!user) {
             const newUser: TiktokUser = {
                 ...newViewerMessage,

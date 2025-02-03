@@ -1,7 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
-import { TiktokService } from './tiktok/tiktok.service';
 import { KeypressService } from './keypress/keypress.service';
 
 async function bootstrap() {
@@ -10,9 +9,6 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe());
   
   await app.listen(3000);
-
-  const tiktokService = app.get(TiktokService);
-  await tiktokService.initTikTokLiveConnection();
 
   const keyPressService = app.get(KeypressService);
   keyPressService.listen(app);

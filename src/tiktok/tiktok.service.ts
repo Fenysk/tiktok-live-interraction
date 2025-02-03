@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { WebcastPushConnection } from 'tiktok-live-connector';
 import { ChatMessage } from './interface/chat.interface';
 import { GAME_CONSTANTS } from 'src/game/constants/game.constants';
@@ -11,17 +11,17 @@ import { FollowMessage } from './interface/follow.interface';
 import { ShareMessage } from './interface/share.interface';
 
 @Injectable()
-export class TiktokService {
+export class TiktokService implements OnModuleInit {
     private tiktokStreamAccount = GAME_CONSTANTS.TIKTOK_STREAM_ACCOUNT;
     private tiktokLiveConnection = new WebcastPushConnection(this.tiktokStreamAccount);
 
-    private newViewerCallback: (data: any) => void;
-    private messageCallback: (data: ChatMessage) => void;
-    private likeCallback: (data: LikeMessage) => void;
-    private giftCallback: (data: GiftMessage) => void;
-    private subscriptionCallback: (data: SubscriptionMessage) => void;
-    private followCallback: (data: FollowMessage) => void;
-    private shareCallback: (data: ShareMessage) => void;
+    private newViewerSubscribers: ((data: NewViewerMessage) => void)[] = [];
+    private messageSubscribers: ((data: ChatMessage) => void)[] = [];
+    private likeSubscribers: ((data: LikeMessage) => void)[] = [];
+    private giftSubscribers: ((data: GiftMessage) => void)[] = [];
+    private subscriptionSubscribers: ((data: SubscriptionMessage) => void)[] = [];
+    private followSubscribers: ((data: FollowMessage) => void)[] = [];
+    private shareSubscribers: ((data: ShareMessage) => void)[] = [];
 
     private readonly MAX_RECONNECT_ATTEMPTS = 10;
     private readonly RECONNECT_DELAY = 5000;
@@ -32,93 +32,85 @@ export class TiktokService {
     constructor() {
         this.tiktokLiveConnection.on(TikTokEvent.LIVE_DISCONNECTED, () => {
             this.isConnected = false;
-            this.handleReconnect();
+            this.initTikTokLiveConnection();
         });
 
         this.tiktokLiveConnection.on(TikTokEvent.NEW_VIEWER, (data: NewViewerMessage) => {
-            this.newViewerCallback?.(data);
+            this.newViewerSubscribers.forEach(callback => callback(data));
         });
 
         this.tiktokLiveConnection.on(TikTokEvent.NEW_MESSAGE, (data: ChatMessage) => {
-            this.messageCallback?.(data);
+            this.messageSubscribers.forEach(callback => callback(data));
         });
 
         this.tiktokLiveConnection.on(TikTokEvent.NEW_LIKE, (data: LikeMessage) => {
-            this.likeCallback?.(data);
+            this.likeSubscribers.forEach(callback => callback(data));
         });
 
         this.tiktokLiveConnection.on(TikTokEvent.NEW_GIFT, (data: GiftMessage) => {
-            this.giftCallback?.(data);
+            this.giftSubscribers.forEach(callback => callback(data));
         });
 
         this.tiktokLiveConnection.on(TikTokEvent.NEW_SUBSCRIPTION, (data: SubscriptionMessage) => {
-            this.subscriptionCallback?.(data);
+            this.subscriptionSubscribers.forEach(callback => callback(data));
         });
 
         this.tiktokLiveConnection.on(TikTokEvent.FOLLOW, (data: FollowMessage) => {
-            this.followCallback?.(data);
+            this.followSubscribers.forEach(callback => callback(data));
         });
 
         this.tiktokLiveConnection.on(TikTokEvent.SHARE, (data: ShareMessage) => {
-            this.shareCallback?.(data);
+            this.shareSubscribers.forEach(callback => callback(data));
         });
+    }
+    async onModuleInit() {
+        await this.initTikTokLiveConnection();
     }
 
     async initTikTokLiveConnection() {
-        if (this.isConnected) {
-            return;
-        }
+        if (this.isConnected) return console.log('Already connected to TikTok Live');
 
-        try {
-            const state = await this.tiktokLiveConnection.connect();
-            this.reconnectAttempts = 0;
-            this.isConnected = true;
-        } catch (err) {
-            this.isConnected = false;
-            this.handleReconnect();
-        }
-    }
-
-    private async handleReconnect(): Promise<void> {
-        if (this.reconnectAttempts >= this.MAX_RECONNECT_ATTEMPTS) {
-            console.error('Max reconnect attempts reached');
-            return;
-        }
-
-        this.reconnectAttempts++;
-
-        setTimeout(async () => {
+        while (this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
             try {
-                await this.initTikTokLiveConnection();
+                await this.tiktokLiveConnection.connect();
+                this.isConnected = true;
+                this.reconnectAttempts = 0;
+                console.log('Connected to TikTok Live');
+                return;
             } catch (err) {
-                console.error('Reconnect failed:', err);
-                this.handleReconnect();
+                this.reconnectAttempts++;
+                console.log(`Connection attempt ${this.reconnectAttempts} failed. Retrying in ${this.RECONNECT_DELAY / 1000} seconds...`);
+                await new Promise(resolve => setTimeout(resolve, this.RECONNECT_DELAY));
             }
-        }, this.RECONNECT_DELAY);
+        }
+        console.log('Max reconnect attempts reached. Failed to connect to TikTok Live.');
     }
 
-    setNewViewerCallback(callback: (data: NewViewerMessage) => void): void {
-        this.newViewerCallback = callback;
+    subscribeToNewViewer(callback: (data: NewViewerMessage) => void): void {
+        this.newViewerSubscribers.push(callback);
     }
 
-    setMessageCallback(callback: (data: ChatMessage) => void): void {
-        this.messageCallback = callback;
+    subscribeToMessage(callback: (data: ChatMessage) => void): void {
+        this.messageSubscribers.push(callback);
     }
 
-    setLikeCallback(callback: (data: LikeMessage) => void): void {
-        this.likeCallback = callback;
+    subscribeToLike(callback: (data: LikeMessage) => void): void {
+        this.likeSubscribers.push(callback);
     }
 
-    setGiftCallback(callback: (data: GiftMessage) => void): void {
-        this.giftCallback = callback;
+    subscribeToGift(callback: (data: GiftMessage) => void): void {
+        this.giftSubscribers.push(callback);
     }
 
-    setFollowCallback(callback: (data: FollowMessage) => void): void {
-        this.followCallback = callback;
+    subscribeToSubscription(callback: (data: SubscriptionMessage) => void): void {
+        this.subscriptionSubscribers.push(callback);
     }
 
-    setShareCallback(callback: (data: ShareMessage) => void): void {
-        this.shareCallback = callback;
+    subscribeToFollow(callback: (data: FollowMessage) => void): void {
+        this.followSubscribers.push(callback);
     }
 
+    subscribeToShare(callback: (data: ShareMessage) => void): void {
+        this.shareSubscribers.push(callback);
+    }
 }

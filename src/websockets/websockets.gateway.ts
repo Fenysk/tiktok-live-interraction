@@ -5,7 +5,7 @@ import {
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger } from '@nestjs/common';
+import { Logger, OnModuleInit } from '@nestjs/common';
 import { QuestionBody as NewQuestionBody } from './dto/question.body';
 import { CorrectAnswerBody } from './dto/correct-answer.body';
 import { TotalLikesFromWaitingRoomBody } from './dto/total-likes-from-waiting-room.body';
@@ -19,28 +19,30 @@ import { PlayerBody } from './dto/player.body';
 import { CurrentPlayersScoresBody } from './dto/current-players-scores.body';
 
 @WebSocketGateway({ cors: { origin: '*' } })
-export class WebsocketsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class WebsocketsGateway implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit {
   @WebSocketServer() server: Server;
   private logger = new Logger('WebsocketsGateway');
 
   constructor(
     private readonly gameStateService: GameStateService,
     private readonly tiktokService: TiktokService
-  ) {
-    this.initializeListeners();
-  }
+  ) { }
 
-  private initializeListeners(): void {
-    this.tiktokService.setFollowCallback(this.emitFollowReceived.bind(this));
-    this.tiktokService.setNewViewerCallback(this.emitNewViewer.bind(this));
+  onModuleInit() {
+    this.tiktokService.subscribeToFollow((data) => {
+      this.emitFollowReceived(data);
+    });
+    this.tiktokService.subscribeToNewViewer((data) => {
+      this.emitNewViewer(data);
+    });
   }
 
   handleConnection(client: Socket): void {
-    this.logger.log(`Client connected: ${client.id}`);
+    this.logger.log(`QuizApp connected: ${client.id}`);
   }
 
   handleDisconnect(client: Socket): void {
-    this.logger.log(`Client disconnected: ${client.id}`);
+    this.logger.log(`QuizApp disconnected: ${client.id}`);
   }
 
   private emit(event: WebSocketEvents, data: any): void {

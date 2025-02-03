@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { GameState } from './interfaces/game.interface';
 import { TiktokService } from 'src/tiktok/tiktok.service';
 import { QuestionsService } from 'src/questions/questions.service';
@@ -17,7 +17,7 @@ import { StatisticsService } from 'src/statistics/statistics.service';
 import { PlayerBody } from 'src/websockets/dto/player.body';
 
 @Injectable()
-export class GameService {
+export class GameService implements OnModuleInit {
     private TOTAL_QUESTIONS: number = GAME_CONSTANTS.TOTAL_QUESTIONS;
     private QUESTION_DURATION: number = GAME_CONSTANTS.QUESTION_DURATION;
 
@@ -30,14 +30,16 @@ export class GameService {
         private readonly likeService: LikeService,
         private readonly gameEventService: GameEventService,
         private readonly statisticsService: StatisticsService,
-    ) {
+    ) {}
+
+    onModuleInit() {
         this.initializeListeners();
     }
 
     private initializeListeners(): void {
-        this.tiktokService.setMessageCallback(this.handleChatMessage.bind(this));
-        this.tiktokService.setLikeCallback(this.handleLikeMessage.bind(this));
-        this.tiktokService.setGiftCallback(this.handleGiftMessage.bind(this));
+        this.tiktokService.subscribeToMessage(this.handleChatMessage.bind(this));
+        this.tiktokService.subscribeToLike(this.handleLikeMessage.bind(this));
+        this.tiktokService.subscribeToGift(this.handleGiftMessage.bind(this));
     }
 
     private handleChatMessage(data: ChatMessage): void {
@@ -89,7 +91,7 @@ export class GameService {
         this.gameStateService.updateGameState({ currentQuestionNumber: 1 });
 
         /// TODO: Supprimer la délimitation
-        // this.gameStateService.updateGameState({ currentQuestionNumber: 8 });
+        // this.gameStateService.updateGameState({ currentQuestionNumber: 10 });
         /// Délimitation
 
 
@@ -163,6 +165,8 @@ export class GameService {
     }
 
     async handleAnswer(player: PlayerBody, answer: string): Promise<boolean> {
+        if (!player) return;
+
         const isQuestionReadyToAnwser = this.gameStateService.getCurrentQuestion() && !this.gameStateService.getCurrentQuestion().isAnswered
         if (!isQuestionReadyToAnwser) {
             return false;

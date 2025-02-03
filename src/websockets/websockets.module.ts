@@ -9,7 +9,7 @@ import { UsersModule } from 'src/users/users.module';
   imports: [
     forwardRef(() => GameModule),
     TiktokModule,
-    UsersModule,
+    forwardRef(() => UsersModule),
   ],
   providers: [WebsocketsGateway],
   exports: [WebsocketsGateway],
