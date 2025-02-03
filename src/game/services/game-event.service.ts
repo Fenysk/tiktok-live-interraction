@@ -16,7 +16,7 @@ export class GameEventService {
         this.websocketsGateway.emitNewQuestion(question);
     }
 
-    emitGameEnded(scores: [string, number][]): void {
-        this.websocketsGateway.emitGameEnded({scores});
+    emitGameEnded(): void {
+        this.websocketsGateway.emitGameEnded();
     }
 }

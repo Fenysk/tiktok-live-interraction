@@ -1,4 +1,4 @@
-import { forwardRef, Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { GameState } from './interfaces/game.interface';
 import { TiktokService } from 'src/tiktok/tiktok.service';
 import { QuestionsService } from 'src/questions/questions.service';
@@ -14,6 +14,7 @@ import { GiftMessage as TiktokGiftMessage } from 'src/tiktok/interface/gift.inte
 import { Option, Question } from '@prisma/client';
 import { GameEventService } from './services/game-event.service';
 import { StatisticsService } from 'src/statistics/statistics.service';
+import { PlayerBody } from 'src/websockets/dto/player.body';
 
 @Injectable()
 export class GameService {
@@ -41,7 +42,8 @@ export class GameService {
 
     private handleChatMessage(data: ChatMessage): void {
         if (this.gameStateService.getIsGameActive() && this.gameStateService.getCurrentQuestion()) {
-            this.handleAnswer(data.uniqueId, data.nickname, data.profilePictureUrl, data.comment);
+            const player = this.gameStateService.getPlayer(data.uniqueId);
+            this.handleAnswer(player, data.comment);
         }
     }
 
@@ -84,8 +86,12 @@ export class GameService {
         }
 
         this.gameStateService.setGameQuestions(gameQuestions);
-
         this.gameStateService.updateGameState({ currentQuestionNumber: 1 });
+
+        /// TODO: Supprimer la délimitation
+        // this.gameStateService.updateGameState({ currentQuestionNumber: 8 });
+        /// Délimitation
+
 
         await this.nextQuestion();
     }
@@ -102,27 +108,28 @@ export class GameService {
         return questions;
     }
 
-    stopGame(): void {
+    showResults(): void {
         this.gameStateService.setIsActive(false);
-        this.gameStateService.setCurrentQuestion(null);
-        this.gameStateService.resetScores();
-        this.gameStateService.resetAllCombos();
-        this.gameTimerService.stopTimer();
         this.gameTimerService.resetTimer();
-        this.gameStateService.setGameQuestions([]);
-        this.gameEventService.emitGameEnded(Array.from(this.gameStateService.getScores().entries()));
+        this.gameEventService.emitGameEnded();
+        this.handleSendCurrentScores();
+    }
+
+    stopGame(): void {
+        this.gameStateService.resetGameState();
+        this.handleSendCurrentScores();
     }
 
     async nextQuestion(): Promise<void> {
-        if (!this.gameStateService.getIsGameActive()) {
+        if (!this.gameStateService.getIsGameActive())
             return;
-        }
 
         const currentQuestionNumber = this.gameStateService.getCurrentQuestionNumber();
 
-        if (currentQuestionNumber > this.TOTAL_QUESTIONS) {
-            return this.stopGame();
-        }
+        if (currentQuestionNumber > this.TOTAL_QUESTIONS)
+            return this.showResults();
+
+        this.gameStateService.updateGameState({ currentQuestionNumber: currentQuestionNumber + 1 });
 
         const currentQuestion = this.gameStateService.getGameQuestions()[currentQuestionNumber - 1];
 
@@ -137,26 +144,31 @@ export class GameService {
 
         this.gameEventService.emitNewQuestion(this.gameStateService.getCurrentQuestion());
         this.gameTimerService.startTimer();
-
-        this.gameStateService.updateGameState({ currentQuestionNumber: currentQuestionNumber + 1 });
     }
 
-    private async handleCorrectAnswer(uniqueId: string, nickname: string, profilePictureUrl: string): Promise<void> {
+    private async handleCorrectAnswer(player: PlayerBody): Promise<void> {
         this.gameTimerService.stopTimer();
-        const combo = this.gameStateService.getCombos().get(uniqueId) || 0;
-        const newScore = this.gameStateService.updateScore(uniqueId, 10 * (1 + combo * 0.2));
-        const newCombo = this.gameStateService.updateCombo(uniqueId, 1);
-        this.gameEventService.emitCorrectAnswer({uniqueId, nickname, profilePictureUrl, score: newScore, combo: newCombo});
-        this.statisticsService.incrementUserCorrectAnswers(uniqueId);
+        const combo = this.gameStateService.getCombos().get(player.uniqueId) || 0;
+        const newScore = this.gameStateService.updateScore(player.uniqueId, 10 * (1 + combo * 0.2));
+        const newCombo = this.gameStateService.updatePlayerCurrentCombo(player.uniqueId, 1);
+        const comboMax = this.gameStateService.getCombosMax().get(player.uniqueId) || 0;
+        this.gameStateService.resetCurrentCombosForOtherUsers(player.uniqueId);
+        const updatedPlayer = this.gameStateService.getPlayer(player.uniqueId);
+
+        if (updatedPlayer) {
+            this.gameEventService.emitCorrectAnswer({ player: updatedPlayer, score: newScore, combo: newCombo, comboMax });
+        }
+        this.handleSendCurrentScores();
+        this.statisticsService.incrementUserCorrectAnswers(updatedPlayer.uniqueId);
     }
 
-    async handleAnswer(uniqueId: string, nickname: string, profilePictureUrl: string, answer: string): Promise<boolean> {
+    async handleAnswer(player: PlayerBody, answer: string): Promise<boolean> {
         const isQuestionReadyToAnwser = this.gameStateService.getCurrentQuestion() && !this.gameStateService.getCurrentQuestion().isAnswered
         if (!isQuestionReadyToAnwser) {
             return false;
         }
 
-        this.statisticsService.updateUserLastParticipation(uniqueId);
+        this.statisticsService.updateUserLastParticipation(player.uniqueId);
 
         const correctOption = this.gameStateService.getCurrentQuestion().options.find(
             option => option.id === this.gameStateService.getCurrentQuestion().correctOptionId
@@ -166,11 +178,26 @@ export class GameService {
         const normalizedCorrectOption = correctOption.text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
 
         if (normalizedAnswer === normalizedCorrectOption) {
-            await this.handleCorrectAnswer(uniqueId, nickname, profilePictureUrl);
+            await this.handleCorrectAnswer(player);
             return true;
         }
 
         return false;
+    }
+
+    handleSendCurrentScores() {
+        const players = this.gameStateService.getOnlineUsers().map(player => ({
+            info: {
+                uniqueId: player.uniqueId,
+                nickname: player.nickname,
+                profilePictureUrl: player.profilePictureUrl,
+            },
+            score: this.gameStateService.getScores().get(player.uniqueId) || 0,
+            combo: this.gameStateService.getCombos().get(player.uniqueId) || 0,
+            comboMax: this.gameStateService.getCombosMax().get(player.uniqueId) || 0,
+        }));
+
+        this.websocketsGateway.emitUpdateCurrentScore({ players });
     }
 
     getCurrentGameState(): GameState {

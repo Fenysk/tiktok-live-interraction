@@ -8,12 +8,14 @@ import { GameTimerService } from './services/game-timer.service';
 import { LikeModule } from 'src/like/like.module';
 import { QuestionsModule } from 'src/questions/questions.module';
 import { GameEventService } from './services/game-event.service';
+import { UsersModule } from 'src/users/users.module';
 
 @Module({
   imports: [
     forwardRef(() => WebsocketsModule),
     LikeModule,
     QuestionsModule,
+    UsersModule,
   ],
   providers: [
     GameService,

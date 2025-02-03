@@ -3,6 +3,7 @@ import { TiktokService } from 'src/tiktok/tiktok.service';
 import { NewViewerMessage } from 'src/tiktok/interface/new-viewer.interface';
 import { TiktokUser } from 'src/tiktok/interface/user.interface';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { GameStateService } from 'src/game/services/game-state.service';
 
 @Injectable()
 export class UsersService {
@@ -11,6 +12,7 @@ export class UsersService {
     constructor(
         private readonly tiktokService: TiktokService,
         private readonly prismaService: PrismaService,
+        private readonly gameStateService: GameStateService,
     ) {
         this.initializeListeners();
     }
@@ -22,6 +24,7 @@ export class UsersService {
     async handleNewViewer(data: NewViewerMessage): Promise<void> {
         await this.addUserToDatabase(data);
         this.addUserToOnlineUsersList(data);
+        this.gameStateService.updateOnlineUsers(this.onlineUsers);  
     }
 
     private async addUserToDatabase(newViewerMessage: NewViewerMessage): Promise<void> {

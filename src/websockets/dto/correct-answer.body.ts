@@ -1,21 +1,19 @@
-import { IsString, IsNumber, IsNotEmpty } from 'class-validator';
+import { IsNumber, IsNotEmpty, ValidateNested } from 'class-validator';
+import { PlayerBody } from './player.body';
+import { Type } from 'class-transformer';
 
 export class CorrectAnswerBody {
-    @IsString()
     @IsNotEmpty()
-    uniqueId: string;
-
-    @IsString()
-    @IsNotEmpty()
-    nickname: string;
-
-    @IsString()
-    @IsNotEmpty()
-    profilePictureUrl: string;
+    @ValidateNested()
+    @Type(() => PlayerBody)
+    player: PlayerBody;
 
     @IsNumber()
     score: number;
 
     @IsNumber()
     combo: number;
+
+    @IsNumber()
+    comboMax: number;
   }

@@ -1,17 +1,11 @@
-import { IsString, IsNotEmpty } from 'class-validator';
+import { IsString, IsNotEmpty, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+import { PlayerBody } from 'src/websockets/dto/player.body';
 
 export class AnswerDto {
-    @IsString()
-    @IsNotEmpty()
-    uniqueId: string;
-
-    @IsString()
-    @IsNotEmpty()
-    nickname: string;
-    
-    @IsString()
-    @IsNotEmpty()
-    profilePictureUrl: string;
+    @ValidateNested()
+    @Type(() => PlayerBody)
+    player: PlayerBody;
 
     @IsString()
     @IsNotEmpty()

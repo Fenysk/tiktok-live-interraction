@@ -8,16 +8,15 @@ import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { QuestionBody as NewQuestionBody } from './dto/question.body';
 import { CorrectAnswerBody } from './dto/correct-answer.body';
-import { FinalScoresBody } from './dto/final-scores.body';
 import { TotalLikesFromWaitingRoomBody } from './dto/total-likes-from-waiting-room.body';
 import { NewGiftBody } from './dto/gift.body';
 import { GameStateService } from '../game/services/game-state.service';
 import { TiktokService } from 'src/tiktok/tiktok.service';
-import { NewFollowerBody } from './dto/new-follower.body';
 import { FollowMessage } from 'src/tiktok/interface/follow.interface';
 import { WebSocketEvents } from './enum/websocket-event.enum';
 import { NewViewerMessage } from 'src/tiktok/interface/new-viewer.interface';
-import { NewViewerBody } from './dto/new-viewer.body';
+import { PlayerBody } from './dto/player.body';
+import { CurrentPlayersScoresBody } from './dto/current-players-scores.body';
 
 @WebSocketGateway({ cors: { origin: '*' } })
 export class WebsocketsGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -62,8 +61,8 @@ export class WebsocketsGateway implements OnGatewayConnection, OnGatewayDisconne
     this.emit(WebSocketEvents.CORRECT_ANSWER, data);
   }
 
-  emitGameEnded(data: FinalScoresBody): void {
-    this.emit(WebSocketEvents.GAME_ENDED, data);
+  emitGameEnded(): void {
+    this.emit(WebSocketEvents.GAME_ENDED, null);
   }
 
   emitTotalLikesFromWaitingRoom(data: TotalLikesFromWaitingRoomBody): void {
@@ -75,7 +74,7 @@ export class WebsocketsGateway implements OnGatewayConnection, OnGatewayDisconne
   }
 
   emitFollowReceived(data: FollowMessage): void {
-    const newFollowerBody: NewFollowerBody = {
+    const newFollowerBody: PlayerBody = {
       uniqueId: data.uniqueId,
       nickname: data.nickname,
       profilePictureUrl: data.profilePictureUrl,
@@ -84,12 +83,17 @@ export class WebsocketsGateway implements OnGatewayConnection, OnGatewayDisconne
   }
 
   emitNewViewer(data: NewViewerMessage): void {
-    const newViewerBody: NewViewerBody = {
+    const newViewerBody: PlayerBody = {
       uniqueId: data.uniqueId,
       nickname: data.nickname,
       profilePictureUrl: data.profilePictureUrl,
     };
     this.emit(WebSocketEvents.NEW_VIEWER, newViewerBody);
+  }
+
+  emitUpdateCurrentScore(data: CurrentPlayersScoresBody): void {
+    this.logger.log(`Emitting ${WebSocketEvents.UPDATE_CURRENT_SCORE} with data: ${JSON.stringify(data)}`);
+    this.emit(WebSocketEvents.UPDATE_CURRENT_SCORE, data);
   }
 
   resetCombo(): void {

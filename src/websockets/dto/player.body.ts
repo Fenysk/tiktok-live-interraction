@@ -1,6 +1,6 @@
 import { IsString, IsUrl } from 'class-validator';
 
-export class NewFollowerBody {
+export class PlayerBody {
   @IsString()
   uniqueId: string;
 

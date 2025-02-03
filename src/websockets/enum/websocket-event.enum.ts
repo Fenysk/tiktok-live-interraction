@@ -7,4 +7,5 @@ export enum WebSocketEvents {
     GIFT_RECEIVED = 'giftReceived',
     NEW_FOLLOWER = 'newFollower',
     NEW_VIEWER= 'newViewer',
+    UPDATE_CURRENT_SCORE = 'updateCurrentScore',
   }
