@@ -3,13 +3,16 @@ import { FollowMessage } from 'src/tiktok/interface/follow.interface';
 import { NewViewerMessage } from 'src/tiktok/interface/new-viewer.interface';
 import { UsersService } from 'src/users/users.service';
 import { WebsocketsGateway } from './websockets.gateway';
+import { LikeMessage } from 'src/tiktok/interface/like.interface';
+import { GameService } from 'src/game/game.service';
 
 @Controller('websockets')
 export class WebsocketsController {
     constructor(
         private readonly usersService: UsersService,
-        private readonly websocketsService: WebsocketsGateway
-    ) {}
+        private readonly websocketsService: WebsocketsGateway,
+        private readonly gameService: GameService
+    ) { }
 
     @Post('handle-new-viewer')
     async handleNewViewer(
@@ -24,5 +27,12 @@ export class WebsocketsController {
         @Body() data: FollowMessage
     ): Promise<void> {
         return await this.websocketsService.emitFollowReceived(data);
+    }
+
+    @Post('handle-like')
+    async handleLike(
+        @Body() data: LikeMessage
+    ): Promise<void> {
+        return await this.gameService.handleLikeMessage(data);
     }
 }

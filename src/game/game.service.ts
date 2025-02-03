@@ -47,7 +47,7 @@ export class GameService {
         }
     }
 
-    private handleLikeMessage(newLikeMessage: LikeMessage): void {
+    handleLikeMessage(newLikeMessage: LikeMessage): void {
         if (!this.gameStateService.getIsGameActive()) {
             const newTotalLikes = this.likeService.addLikesToTotal(newLikeMessage.likeCount);
             this.websocketsGateway.emitTotalLikesFromWaitingRoom({ totalLikes: newTotalLikes });
