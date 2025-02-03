@@ -15,6 +15,7 @@ export class WebsocketsController {
     async handleNewViewer(
         @Body() data: NewViewerMessage
     ): Promise<void> {
+        await this.websocketsService.emitNewViewer(data);
         return await this.usersService.handleNewViewer(data);
     }
 
