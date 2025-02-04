@@ -47,7 +47,7 @@ export class QuestionsService {
             const createdQuestions = await Promise.all(
                 createQuestionDto.map(async (questionDto) => {
                     const { text, correctOptionIndex, options } = questionDto;
-    
+
                     const question = await tx.question.create({
                         data: {
                             text,
@@ -62,7 +62,7 @@ export class QuestionsService {
                             Options: true
                         }
                     });
-    
+
                     const updatedQuestion = await tx.question.update({
                         where: { id: question.id },
                         data: {
@@ -72,19 +72,19 @@ export class QuestionsService {
                             Options: true
                         }
                     });
-    
+
                     return updatedQuestion;
                 })
             );
-    
+
             return createdQuestions;
         }, {
             maxWait: 99999999,
             timeout: 9999999,
         });
     }
-    
-    
+
+
 
     async getQuestions() {
         return this.prismaService.question.findMany({
@@ -94,13 +94,30 @@ export class QuestionsService {
         });
     }
 
-    async getTextOfQuestions () {
+    async getTextOfQuestions() {
         return this.prismaService.question.findMany({
             select: {
                 id: true,
                 text: true
             }
         });
+    }
+
+    async getQuestionAtIndex(index: number): Promise<(Question & { Options: Option[] })> {
+        const count = await this.prismaService.question.count();
+
+        if (index < 0 || index >= count)
+            return null;
+
+        const [question] = await this.prismaService.question.findMany({
+            take: 1,
+            skip: index,
+            include: {
+                Options: true
+            }
+        });
+
+        return question;
     }
 
     async getRandomQuestion(): Promise<(Question & { Options: Option[] })> {
@@ -111,7 +128,7 @@ export class QuestionsService {
         }
 
         const randomSkip = Math.floor(Math.random() * count);
-        
+
         const [question] = await this.prismaService.question.findMany({
             take: 1,
             skip: randomSkip,

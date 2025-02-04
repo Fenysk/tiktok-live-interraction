@@ -16,7 +16,7 @@ import { TiktokModule } from 'src/tiktok/tiktok.module';
     LikeModule,
     QuestionsModule,
     UsersModule,
-    TiktokModule
+    TiktokModule,
   ],
   providers: [
     GameService,

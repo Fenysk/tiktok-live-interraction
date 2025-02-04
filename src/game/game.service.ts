@@ -15,6 +15,8 @@ import { Option, Question } from '@prisma/client';
 import { GameEventService } from './services/game-event.service';
 import { StatisticsService } from 'src/statistics/statistics.service';
 import { PlayerBody } from 'src/websockets/dto/player.body';
+import { FakeMessages } from 'src/users/fake-messages.constants';
+import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class GameService implements OnModuleInit {
@@ -30,6 +32,7 @@ export class GameService implements OnModuleInit {
         private readonly likeService: LikeService,
         private readonly gameEventService: GameEventService,
         private readonly statisticsService: StatisticsService,
+        private readonly usersService: UsersService,
     ) { }
 
     onModuleInit() {
@@ -39,16 +42,15 @@ export class GameService implements OnModuleInit {
 
     private initializeListeners(): void {
         this.tiktokService.subscribeToNewMessage(this.handleChatMessage.bind(this));
-
         this.tiktokService.subscribeToLike(this.handleLikeMessage.bind(this));
-
         this.tiktokService.subscribeToGift(this.handleGiftMessage.bind(this));
     }
 
     private handleChatMessage(data: ChatMessage): void {
-        if (this.gameStateService.getIsGameActive() && this.gameStateService.getCurrentQuestion()) {
-            const player = this.gameStateService.getPlayer(data.uniqueId);
-            this.handleAnswer(player, data.comment);
+        const player = this.gameStateService.getPlayer(data.uniqueId);
+        if (player && this.gameStateService.getIsGameActive() && this.gameStateService.getCurrentQuestion()) {
+            if (player)
+                this.handleAnswer(player, data.comment);
         }
     }
 
@@ -86,6 +88,7 @@ export class GameService implements OnModuleInit {
         this.TOTAL_QUESTIONS = dto.numberOfQuestions || GAME_CONSTANTS.TOTAL_QUESTIONS;
 
         const gameQuestions = await this.fetchQuestions();
+        // const gameQuestions = await this.fetchFakeQuestions(); // TODO: Remove this fake questions
         if (gameQuestions.length < this.TOTAL_QUESTIONS) {
             return this.stopGame();
         }
@@ -108,11 +111,23 @@ export class GameService implements OnModuleInit {
         return questions;
     }
 
+    private async fetchFakeQuestions(): Promise<(Question & { Options: Option[] })[]> {
+        const questions: (Question & { Options: Option[] })[] = [];
+        for (let i = 0; i < this.TOTAL_QUESTIONS; i++) {
+            const question = await this.questionsService.getQuestionAtIndex(i);
+            if (!question) {
+                break;
+            }
+            questions.push(question);
+        }
+        return questions;
+    }
+
     showResults(): void {
+        this.handleSendCurrentScores();
         this.gameStateService.setIsActive(false);
         this.gameTimerService.resetTimer();
         this.gameEventService.emitGameEnded();
-        this.handleSendCurrentScores();
     }
 
     stopGame(): void {
@@ -146,41 +161,85 @@ export class GameService implements OnModuleInit {
 
         this.gameEventService.emitNewQuestion(this.gameStateService.getCurrentQuestion());
         this.gameTimerService.startTimer();
+
+        // const fakeUsers = new FakeMessages();
+
+        // this.usersService.handleNewMessage(fakeUsers.exampleChatMessage1);
+        // this.usersService.handleNewMessage(fakeUsers.exampleChatMessage2);
+        // this.usersService.handleNewMessage(fakeUsers.exampleChatMessage3);
+        // this.usersService.handleNewMessage(fakeUsers.exampleChatMessage4);
+        // this.usersService.handleNewMessage(fakeUsers.exampleChatMessage5);
+        // this.usersService.handleNewMessage(fakeUsers.exampleChatMessage6);
+        // this.usersService.handleNewMessage(fakeUsers.exampleChatMessage7);
+        // this.usersService.handleNewMessage(fakeUsers.exampleChatMessage8);
+        // this.usersService.handleNewMessage(fakeUsers.exampleChatMessage9);
+        // this.usersService.handleNewMessage(fakeUsers.exampleChatMessage10);
+        // this.usersService.handleNewMessage(fakeUsers.exampleChatMessage11);
+        // this.usersService.handleNewMessage(fakeUsers.exampleChatMessage12);
+        // this.usersService.handleNewMessage(fakeUsers.exampleChatMessage13);
+        // this.usersService.handleNewMessage(fakeUsers.exampleChatMessage14);
+        // this.usersService.handleNewMessage(fakeUsers.exampleChatMessage15);
+        // this.usersService.handleNewMessage(fakeUsers.exampleChatMessage16);
+        // this.usersService.handleNewMessage(fakeUsers.exampleChatMessage17);
+        // this.usersService.handleNewMessage(fakeUsers.exampleChatMessage18);
+
+        // setTimeout(() => {
+        //     console.log('5 seconds have passed');
+
+        //     setTimeout(() => this.handleChatMessage(fakeUsers.exampleChatMessage1), 1000);
+        //     setTimeout(() => this.handleChatMessage(fakeUsers.exampleChatMessage2), 2000);
+        //     setTimeout(() => this.handleChatMessage(fakeUsers.exampleChatMessage3), 3000);
+
+        //     setTimeout(() => this.handleChatMessage(fakeUsers.exampleChatMessage4), 1000);
+        //     setTimeout(() => this.handleChatMessage(fakeUsers.exampleChatMessage5), 2000);
+        //     setTimeout(() => this.handleChatMessage(fakeUsers.exampleChatMessage6), 3000);
+
+        //     setTimeout(() => this.handleChatMessage(fakeUsers.exampleChatMessage7), 1000);
+        //     setTimeout(() => this.handleChatMessage(fakeUsers.exampleChatMessage8), 3000);
+        //     setTimeout(() => this.handleChatMessage(fakeUsers.exampleChatMessage9), 7000);
+
+        //     setTimeout(() => this.handleChatMessage(fakeUsers.exampleChatMessage10), 1000);
+        //     setTimeout(() => this.handleChatMessage(fakeUsers.exampleChatMessage11), 2000);
+        //     setTimeout(() => this.handleChatMessage(fakeUsers.exampleChatMessage12), 6000);
+
+        //     setTimeout(() => this.handleChatMessage(fakeUsers.exampleChatMessage13), 6000);
+        //     setTimeout(() => this.handleChatMessage(fakeUsers.exampleChatMessage14), 2000);
+        //     setTimeout(() => this.handleChatMessage(fakeUsers.exampleChatMessage15), 3000);
+
+        //     setTimeout(() => this.handleChatMessage(fakeUsers.exampleChatMessage16), 3000);
+        //     setTimeout(() => this.handleChatMessage(fakeUsers.exampleChatMessage17), 2000);
+        //     setTimeout(() => this.handleChatMessage(fakeUsers.exampleChatMessage18), 1000);
+        // }, 5000);
     }
 
-     private async handleCorrectAnswer(player: PlayerBody): Promise<void> {
+    private async handleCorrectAnswer(player: PlayerBody): Promise<void> {
+        if (this.gameStateService.checkIfUserAlreadyAnswered(player.uniqueId)) return;
+
         this.gameStateService.getCurrentQuestion().isAnswered = true;
+        this.gameTimerService.startCooldownAndSetFlag();
 
         this.gameTimerService.setCurrentResponseTime(player.uniqueId);
 
-        const combo = this.gameStateService.getCombos().get(player.uniqueId) || 0;
-        const newScore = this.gameStateService.updateScore(player.uniqueId, 10 * (1 + combo * 0.2));
-        const newCombo = this.gameStateService.updatePlayerCurrentCombo(player.uniqueId, 1);
-        const comboMax = this.gameStateService.getCombosMax().get(player.uniqueId) || 0;
-        this.gameStateService.resetCurrentCombosForOtherUsers(player.uniqueId);
+        this.gameStateService.updateScore(player.uniqueId);
+        
         const playerFromOnlineList = this.gameStateService.getPlayer(player.uniqueId);
 
         if (playerFromOnlineList)
-            this.gameEventService.emitCorrectAnswer({ player: playerFromOnlineList, score: newScore, combo: newCombo, comboMax });
+            this.websocketsGateway.emitCorrectAnswer(playerFromOnlineList);
 
-        this.handleSendCurrentScores();
         this.statisticsService.incrementUserCorrectAnswers(playerFromOnlineList.uniqueId);
-
-        this.gameTimerService.startCooldownAndSetFlag();
     }
 
     private async handleWrongAnswer(player: PlayerBody, answer: string): Promise<void> {
+        console.log(`Player ${player.uniqueId} answered incorrectly: ${answer}`);
     }
 
-    async handleAnswer(player: PlayerBody, answer: string): Promise<boolean> {
-        if (!player || !this.gameStateService.getPlayer(player.uniqueId)) {
-            return;
-        }
+    async handleAnswer(player: PlayerBody, answer: string): Promise<void> {
+        const isPlayerRegisterd = player && this.gameStateService.getPlayer(player.uniqueId);
+        if (!isPlayerRegisterd) return;
 
-        const isQuestionReadyToAnwser = this.gameStateService.getCurrentQuestion() && !this.gameStateService.getCurrentQuestion().isAnswered
-        if (!isQuestionReadyToAnwser) {
-            return false;
-        }
+        const isQuestionReadyToAnwser = this.gameStateService.getCurrentQuestion() && this.gameTimerService.isTimerActive
+        if (!isQuestionReadyToAnwser) return;
 
         this.statisticsService.updateUserLastParticipation(player.uniqueId);
 
@@ -191,13 +250,10 @@ export class GameService implements OnModuleInit {
         const normalizedAnswer = answer.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
         const normalizedCorrectOption = correctOption.text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
 
-        if (normalizedAnswer === normalizedCorrectOption) {
+        if (normalizedAnswer === normalizedCorrectOption)
             await this.handleCorrectAnswer(player);
-            return true;
-        }
-
-        await this.handleWrongAnswer(player, answer);
-        return false;
+        // else
+        //     await this.handleWrongAnswer(player, answer);
     }
 
     handleSendCurrentScores() {

@@ -56,16 +56,21 @@ export class GameStateService {
         this.currentGameState.responseTimes = new Map<string, number>();
     }
 
-    updateScore(uniqueId: string, score: number): number {
+    updateScore(uniqueId: string): number {
+        this.updatePlayerCurrentCombo(uniqueId);
         const currentScore = this.currentGameState.scores.get(uniqueId) || 0;
-        const newScore = currentScore + score;
-        this.currentGameState.scores.set(uniqueId, newScore);
+        const currentPlayerCombo = this.currentGameState.combos.get(uniqueId) || 0;
+        const comboMultiplier = 1 + currentPlayerCombo * 0.2;
+        const rank = this.getResponseRank(uniqueId);
+        const rankMultiplier = 1 + Math.max(1, 10 - rank);
+        const newScore = currentScore + 10 * comboMultiplier * rankMultiplier;
+        this.currentGameState.scores.set(uniqueId, newScore);        
         return newScore;
     }
 
-    updatePlayerCurrentCombo(uniqueId: string, combo: number): number {
+    updatePlayerCurrentCombo(uniqueId: string): number {
         const currentCombo = this.currentGameState.combos.get(uniqueId) || 0;
-        const newCombo = currentCombo + combo;
+        const newCombo = currentCombo + 1;
         this.currentGameState.combos.set(uniqueId, newCombo);
         const currentComboMax = this.currentGameState.comboMax.get(uniqueId) || 0;
         if (newCombo > currentComboMax)
@@ -74,9 +79,11 @@ export class GameStateService {
         return newCombo;
     }
 
-    resetCurrentCombosForOtherUsers(uniqueId?: string): void {
+    resetCombosForNotWinners(): void {
+        const winners = Array.from(this.currentGameState.responseTimes.keys());
+        console.log(winners.toString());
         this.currentGameState.combos.forEach((_, key) => {
-            if (!uniqueId || key !== uniqueId) {
+            if (!winners.includes(key)) {
                 this.currentGameState.combos.set(key, 0);
             }
         });
@@ -93,6 +100,10 @@ export class GameStateService {
                 this.currentGameState.scores.set(user.uniqueId, 0);
             }
         });
+    }
+
+    checkIfUserAlreadyAnswered(uniqueId: string): boolean {
+        return this.currentGameState.responseTimes.has(uniqueId);
     }
 
     getCurrentGameState(): GameState {
@@ -141,5 +152,12 @@ export class GameStateService {
 
     getResponseTimes(): Map<string, number> {
         return this.currentGameState.responseTimes;
+    }
+
+    getResponseRank(uniqueId: string): number {
+        const responseTimes = Array.from(this.currentGameState.responseTimes.entries());
+        responseTimes.sort((a, b) => a[1] - b[1]);
+        const rank = responseTimes.findIndex(entry => entry[0] === uniqueId);
+        return rank + 1;
     }
 }

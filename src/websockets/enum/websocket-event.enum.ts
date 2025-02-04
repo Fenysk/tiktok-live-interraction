@@ -1,11 +1,16 @@
 export enum WebSocketEvents {
     NEW_QUESTION = 'newQuestion',
     QUESTION_TIMEOUT = 'questionTimeout',
+
     CORRECT_ANSWER = 'correctAnswer',
+    COOLDOWN_TIMEOUT = 'cooldownTimeout',
+    UPDATE_CURRENT_SCORE = 'updateCurrentScore',
+    
     GAME_ENDED = 'gameEnded',
+    
     TOTAL_LIKES = 'totalLikes',
-    GIFT_RECEIVED = 'giftReceived',
+    
+    NEW_GIFT = 'giftReceived',
     NEW_FOLLOWER = 'newFollower',
     NEW_VIEWER= 'newViewer',
-    UPDATE_CURRENT_SCORE = 'updateCurrentScore',
   }
