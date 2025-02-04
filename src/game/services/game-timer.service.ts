@@ -10,6 +10,7 @@ export class GameTimerService {
     private questionTimeout: NodeJS.Timeout;
     private interval: NodeJS.Timeout;
     private readonly questionDuration = GAME_CONSTANTS.QUESTION_DURATION;
+    private readonly cooldownDuration = GAME_CONSTANTS.COOLDOWN_DURATION;
     private remainingTime: number;
     private cooldownTimeout: NodeJS.Timeout;
     isTimerActive: boolean = false;
@@ -81,7 +82,7 @@ export class GameTimerService {
     }
 
     startCooldown(): void {
-        this.cooldownTimeout = setTimeout(() => this.handleCooldownEnd(), 5000);
+        this.cooldownTimeout = setTimeout(() => this.handleCooldownEnd(), this.cooldownDuration * 1000);
     }
 
     private handleCooldownEnd(): void {
