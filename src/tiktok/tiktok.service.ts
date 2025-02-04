@@ -1,10 +1,10 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { WebcastPushConnection } from 'tiktok-live-connector';
+import { WebcastPushConnection as TiktokLiveConnector } from 'tiktok-live-connector';
 import { ChatMessage } from './interface/chat.interface';
 import { GAME_CONSTANTS } from 'src/game/constants/game.constants';
 import { LikeMessage } from './interface/like.interface';
 import { TikTokEvent } from './enums/tiktok-event.enum';
-import { GiftMessage } from './interface/gift.interface';
+import { TiktokGiftMessage } from './interface/gift.interface';
 import { NewViewerMessage } from './interface/new-viewer.interface';
 import { SubscriptionMessage } from './interface/subscription.interface';
 import { FollowMessage } from './interface/follow.interface';
@@ -13,12 +13,17 @@ import { ShareMessage } from './interface/share.interface';
 @Injectable()
 export class TiktokService implements OnModuleInit {
     private tiktokStreamAccount = GAME_CONSTANTS.TIKTOK_STREAM_ACCOUNT;
-    private tiktokLiveConnection = new WebcastPushConnection(this.tiktokStreamAccount);
+    private tiktokLiveConnector = new TiktokLiveConnector(this.tiktokStreamAccount, {
+        processInitialData: false,
+        fetchRoomInfoOnConnect: false,
+        requestOptions: { timeout: 10000 },
+        websocketOptions: { timeout: 10000 }
+    });
 
     private newViewerSubscribers: ((data: NewViewerMessage) => void)[] = [];
     private messageSubscribers: ((data: ChatMessage) => void)[] = [];
     private likeSubscribers: ((data: LikeMessage) => void)[] = [];
-    private giftSubscribers: ((data: GiftMessage) => void)[] = [];
+    private giftSubscribers: ((data: TiktokGiftMessage) => void)[] = [];
     private subscriptionSubscribers: ((data: SubscriptionMessage) => void)[] = [];
     private followSubscribers: ((data: FollowMessage) => void)[] = [];
     private shareSubscribers: ((data: ShareMessage) => void)[] = [];
@@ -30,67 +35,73 @@ export class TiktokService implements OnModuleInit {
     private isConnected = false;
 
     constructor() {
-        this.tiktokLiveConnection.on(TikTokEvent.LIVE_DISCONNECTED, () => {
+        this.tiktokLiveConnector.on(TikTokEvent.LIVE_DISCONNECTED, () => {
             this.isConnected = false;
             this.initTikTokLiveConnection();
         });
+    }
 
-        this.tiktokLiveConnection.on(TikTokEvent.NEW_VIEWER, (data: NewViewerMessage) => {
+    async onModuleInit() {
+        await this.initTikTokLiveConnection();
+        this.initializeListeners();
+    }
+
+    private initializeListeners(): void {
+        this.tiktokLiveConnector.on(TikTokEvent.NEW_VIEWER, (data: NewViewerMessage) => {
             this.newViewerSubscribers.forEach(callback => callback(data));
         });
 
-        this.tiktokLiveConnection.on(TikTokEvent.NEW_MESSAGE, (data: ChatMessage) => {
+        this.tiktokLiveConnector.on(TikTokEvent.NEW_MESSAGE, (data: ChatMessage) => {
             this.messageSubscribers.forEach(callback => callback(data));
         });
 
-        this.tiktokLiveConnection.on(TikTokEvent.NEW_LIKE, (data: LikeMessage) => {
+        this.tiktokLiveConnector.on(TikTokEvent.NEW_LIKE, (data: LikeMessage) => {
             this.likeSubscribers.forEach(callback => callback(data));
         });
 
-        this.tiktokLiveConnection.on(TikTokEvent.NEW_GIFT, (data: GiftMessage) => {
+        this.tiktokLiveConnector.on(TikTokEvent.NEW_GIFT, (data: TiktokGiftMessage) => {
             this.giftSubscribers.forEach(callback => callback(data));
         });
 
-        this.tiktokLiveConnection.on(TikTokEvent.NEW_SUBSCRIPTION, (data: SubscriptionMessage) => {
+        this.tiktokLiveConnector.on(TikTokEvent.NEW_SUBSCRIPTION, (data: SubscriptionMessage) => {
             this.subscriptionSubscribers.forEach(callback => callback(data));
         });
 
-        this.tiktokLiveConnection.on(TikTokEvent.FOLLOW, (data: FollowMessage) => {
+        this.tiktokLiveConnector.on(TikTokEvent.FOLLOW, (data: FollowMessage) => {
             this.followSubscribers.forEach(callback => callback(data));
         });
 
-        this.tiktokLiveConnection.on(TikTokEvent.SHARE, (data: ShareMessage) => {
+        this.tiktokLiveConnector.on(TikTokEvent.SHARE, (data: ShareMessage) => {
             this.shareSubscribers.forEach(callback => callback(data));
         });
     }
-    async onModuleInit() {
-        await this.initTikTokLiveConnection();
-    }
 
     async initTikTokLiveConnection() {
-        if (this.isConnected) return console.log('Already connected to TikTok Live');
-
         while (this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
             try {
-                await this.tiktokLiveConnection.connect();
+                await this.tiktokLiveConnector.connect();
                 this.isConnected = true;
                 this.reconnectAttempts = 0;
                 console.log('Connected to TikTok Live');
                 return;
-            } catch (err) {
+            } catch (error) {
+                console.error('Failed to connect to TikTok Live', error);
                 this.reconnectAttempts++;
-                console.log(`Connection attempt ${this.reconnectAttempts} failed. Retrying in ${this.RECONNECT_DELAY / 1000} seconds...`);
-                await new Promise(resolve => setTimeout(resolve, this.RECONNECT_DELAY));
+                if (this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
+                    console.log(`Retrying in ${this.RECONNECT_DELAY / 1000} seconds...`);
+                    await new Promise(resolve => setTimeout(resolve, this.RECONNECT_DELAY));
+                }
             }
         }
-        console.log('Max reconnect attempts reached. Failed to connect to TikTok Live.');
+
+        console.error('Max retries reached. Unable to connect to TikTok Live.');
     }
 
     subscribeToNewViewer(callback: (data: NewViewerMessage) => void): void {
         this.newViewerSubscribers.push(callback);
     }
 
-    subscribeToMessage(callback: (data: ChatMessage) => void): void {
+    subscribeToNewMessage(callback: (data: ChatMessage) => void): void {
         this.messageSubscribers.push(callback);
     }
 
@@ -98,7 +109,7 @@ export class TiktokService implements OnModuleInit {
         this.likeSubscribers.push(callback);
     }
 
-    subscribeToGift(callback: (data: GiftMessage) => void): void {
+    subscribeToGift(callback: (data: TiktokGiftMessage) => void): void {
         this.giftSubscribers.push(callback);
     }
 
@@ -112,5 +123,28 @@ export class TiktokService implements OnModuleInit {
 
     subscribeToShare(callback: (data: ShareMessage) => void): void {
         this.shareSubscribers.push(callback);
+    }
+
+    simulateEvent(event: TikTokEvent, data: any): void {
+        const eventMap = {
+            [TikTokEvent.NEW_MESSAGE]: this.messageSubscribers,
+            [TikTokEvent.NEW_VIEWER]: this.newViewerSubscribers,
+            [TikTokEvent.NEW_LIKE]: this.likeSubscribers,
+            [TikTokEvent.NEW_GIFT]: this.giftSubscribers,
+            [TikTokEvent.NEW_SUBSCRIPTION]: this.subscriptionSubscribers,
+            [TikTokEvent.FOLLOW]: this.followSubscribers,
+            [TikTokEvent.SHARE]: this.shareSubscribers,
+        };
+
+        const subscribers = eventMap[event];
+
+        console.log(`Simulating event: ${event} with data:`, JSON.stringify(data).substring(0, 20) + '.....' + JSON.stringify(data).slice(-20));
+
+        if (subscribers) {
+            console.log(`Subscribers for event: ${event}`, subscribers.length);
+            subscribers.forEach(callback => callback(data));
+        } else {
+            console.error(`Unknown event: ${event}`);
+        }
     }
 }

@@ -29,12 +29,8 @@ export class WebsocketsGateway implements OnGatewayConnection, OnGatewayDisconne
   ) { }
 
   onModuleInit() {
-    this.tiktokService.subscribeToFollow((data) => {
-      this.emitFollowReceived(data);
-    });
-    this.tiktokService.subscribeToNewViewer((data) => {
-      this.emitNewViewer(data);
-    });
+    this.tiktokService.subscribeToFollow(this.emitFollowReceived.bind(this));
+    this.tiktokService.subscribeToNewViewer(this.emitNewViewer.bind(this));
   }
 
   handleConnection(client: Socket): void {

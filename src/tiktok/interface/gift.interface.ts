@@ -1,6 +1,6 @@
 import { FollowInfo, UserBadge, UserDetails } from "./user.interface";
 
-export interface GiftMessage {
+export interface TiktokGiftMessage {
     giftId: number;
     repeatCount: number;
     groupId: string;

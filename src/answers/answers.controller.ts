@@ -1,18 +1,21 @@
 import { Body, Controller, Post } from '@nestjs/common';
-import { GameService } from 'src/game/game.service';
-import { AnswerDto } from './dto/answer.dto';
+import { ChatMessage } from 'src/tiktok/interface/chat.interface';
+import { TiktokService } from 'src/tiktok/tiktok.service';
+import { TikTokEvent } from 'src/tiktok/enums/tiktok-event.enum';
 
 @Controller('answers')
 export class AnswersController {
-    constructor(private readonly gameService: GameService) {}
+    constructor(
+      private readonly tiktokService: TiktokService,
+    ) {}
     
     @Post()
     async handleAnswer(
-      @Body() body: AnswerDto
-    ): Promise<boolean> {
-      return this.gameService.handleAnswer(
-        body.player,
-        body.answer
+      @Body() body: ChatMessage
+    ): Promise<any> {
+      return this.tiktokService.simulateEvent(
+        TikTokEvent.NEW_MESSAGE,
+        body
       );
     }
 }

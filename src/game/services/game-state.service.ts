@@ -5,18 +5,19 @@ import { TiktokUser } from "src/tiktok/interface/user.interface";
 
 @Injectable()
 export class GameStateService {
-    private gameState: GameState;
+    private currentGameState?: GameState;
 
     constructor() {
         this.resetGameState();
     }
 
     updateGameState(newState: Partial<GameState>): void {
-        this.gameState = { ...this.gameState, ...newState };
+        this.currentGameState = { ...this.currentGameState, ...newState };
     }
 
     resetGameState({ isActive = false }: { isActive?: boolean } = {}): void {
-        this.gameState = {
+        const onlineUsers = this.getOnlineUsers() || [];
+        this.currentGameState = {
             isActive,
             gameQuestions: [],
             currentQuestion: null,
@@ -25,103 +26,120 @@ export class GameStateService {
             scores: new Map<string, number>(),
             combos: new Map<string, number>(),
             comboMax: new Map<string, number>(),
-            onlineUsers: [],
+            responseTimes: new Map<string, number>(), 
+            onlineUsers: onlineUsers,
         };
     }
 
     updateOnlineUsers(onlineUsers: TiktokUser[]): void {
-        this.gameState.onlineUsers = onlineUsers;
+        this.currentGameState.onlineUsers = onlineUsers;
         this.initializeScoresForNewUsers(onlineUsers);
     }
 
     setCurrentQuestion(question: any): void {
-        this.gameState.currentQuestion = question;
+        this.currentGameState.currentQuestion = question;
     }
 
     setIsActive(isActive: boolean): void {
-        this.gameState.isActive = isActive;
+        this.currentGameState.isActive = isActive;
     }
 
     setGameQuestions(questions: (Question & { Options: Option[] })[]): void {
-        this.gameState.gameQuestions = questions;
+        this.currentGameState.gameQuestions = questions;
+    }
+
+    setResponseTime(uniqueId: string, responseTime: number): void {
+        this.currentGameState.responseTimes.set(uniqueId, responseTime);
+    }
+
+    resetAllResponseTime(): void {
+        this.currentGameState.responseTimes = new Map<string, number>();
     }
 
     updateScore(uniqueId: string, score: number): number {
-        const currentScore = this.gameState.scores.get(uniqueId) || 0;
+        const currentScore = this.currentGameState.scores.get(uniqueId) || 0;
         const newScore = currentScore + score;
-        this.gameState.scores.set(uniqueId, newScore);
+        this.currentGameState.scores.set(uniqueId, newScore);
         return newScore;
     }
 
     updatePlayerCurrentCombo(uniqueId: string, combo: number): number {
-        const currentCombo = this.gameState.combos.get(uniqueId) || 0;
+        const currentCombo = this.currentGameState.combos.get(uniqueId) || 0;
         const newCombo = currentCombo + combo;
-        this.gameState.combos.set(uniqueId, newCombo);
-        const currentComboMax = this.gameState.comboMax.get(uniqueId) || 0;
+        this.currentGameState.combos.set(uniqueId, newCombo);
+        const currentComboMax = this.currentGameState.comboMax.get(uniqueId) || 0;
         if (newCombo > currentComboMax)
-            this.gameState.comboMax.set(uniqueId, newCombo);
+            this.currentGameState.comboMax.set(uniqueId, newCombo);
 
         return newCombo;
     }
 
     resetCurrentCombosForOtherUsers(uniqueId?: string): void {
-        this.gameState.combos.forEach((_, key) => {
+        this.currentGameState.combos.forEach((_, key) => {
             if (!uniqueId || key !== uniqueId) {
-                this.gameState.combos.set(key, 0);
+                this.currentGameState.combos.set(key, 0);
             }
         });
     }
 
     resetAllCombos(): void {
-        this.gameState.combos = new Map<string, number>();
-        this.gameState.comboMax = new Map<string, number>();
+        this.currentGameState.combos = new Map<string, number>();
+        this.currentGameState.comboMax = new Map<string, number>();
     }
 
     private initializeScoresForNewUsers(onlineUsers: TiktokUser[]): void {
         onlineUsers.forEach(user => {
-            if (!this.gameState.scores.has(user.uniqueId)) {
-                this.gameState.scores.set(user.uniqueId, 0);
+            if (!this.currentGameState.scores.has(user.uniqueId)) {
+                this.currentGameState.scores.set(user.uniqueId, 0);
             }
         });
     }
 
     getCurrentGameState(): GameState {
-        return this.gameState;
+        return this.currentGameState;
     }
 
     getIsGameActive(): boolean {
-        return this.gameState.isActive;
+        return this.currentGameState.isActive;
     }
 
     getCurrentQuestion(): any {
-        return this.gameState.currentQuestion;
+        return this.currentGameState.currentQuestion;
     }
 
     getCurrentQuestionNumber(): number {
-        return this.gameState.currentQuestionNumber;
+        return this.currentGameState.currentQuestionNumber;
     }
 
     getGameQuestions(): (Question & { Options: Option[] })[] {
-        return this.gameState.gameQuestions;
+        return this.currentGameState.gameQuestions;
     }
 
     getScores(): Map<string, number> {
-        return this.gameState.scores;
+        return this.currentGameState.scores;
     }
 
     getCombos(): Map<string, number> {
-        return this.gameState.combos;
+        return this.currentGameState.combos;
     }
 
     getCombosMax(): Map<string, number> {
-        return this.gameState.comboMax;
+        return this.currentGameState.comboMax;
     }
 
     getOnlineUsers(): TiktokUser[] {
-        return this.gameState.onlineUsers;
+        return this.currentGameState?.onlineUsers;
     }
 
     getPlayer(uniqueId: string): TiktokUser | undefined {
-        return this.gameState.onlineUsers.find(user => user.uniqueId === uniqueId);
+        return this.currentGameState.onlineUsers.find(user => user.uniqueId === uniqueId);
+    }
+
+    recordResponseTime(uniqueId: string, elapsedTime: number): void {
+        this.currentGameState.responseTimes.set(uniqueId, elapsedTime);
+    }
+
+    getResponseTimes(): Map<string, number> {
+        return this.currentGameState.responseTimes;
     }
 }

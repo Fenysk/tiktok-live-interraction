@@ -10,5 +10,6 @@ export interface GameState {
   scores: Map<string, number>;
   combos: Map<string, number>;
   comboMax: Map<string, number>;
+  responseTimes: Map<string, number>;
   onlineUsers: TiktokUser[];
 }

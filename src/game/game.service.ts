@@ -10,7 +10,7 @@ import { GameTimerService } from './services/game-timer.service';
 import { LikeService } from 'src/like/like.service';
 import { ChatMessage } from 'src/tiktok/interface/chat.interface';
 import { LikeMessage } from 'src/tiktok/interface/like.interface';
-import { GiftMessage as TiktokGiftMessage } from 'src/tiktok/interface/gift.interface';
+import { TiktokGiftMessage } from 'src/tiktok/interface/gift.interface';
 import { Option, Question } from '@prisma/client';
 import { GameEventService } from './services/game-event.service';
 import { StatisticsService } from 'src/statistics/statistics.service';
@@ -30,15 +30,18 @@ export class GameService implements OnModuleInit {
         private readonly likeService: LikeService,
         private readonly gameEventService: GameEventService,
         private readonly statisticsService: StatisticsService,
-    ) {}
+    ) { }
 
     onModuleInit() {
         this.initializeListeners();
     }
 
+
     private initializeListeners(): void {
-        this.tiktokService.subscribeToMessage(this.handleChatMessage.bind(this));
+        this.tiktokService.subscribeToNewMessage(this.handleChatMessage.bind(this));
+
         this.tiktokService.subscribeToLike(this.handleLikeMessage.bind(this));
+
         this.tiktokService.subscribeToGift(this.handleGiftMessage.bind(this));
     }
 
@@ -90,11 +93,6 @@ export class GameService implements OnModuleInit {
         this.gameStateService.setGameQuestions(gameQuestions);
         this.gameStateService.updateGameState({ currentQuestionNumber: 1 });
 
-        /// TODO: Supprimer la délimitation
-        // this.gameStateService.updateGameState({ currentQuestionNumber: 10 });
-        /// Délimitation
-
-
         await this.nextQuestion();
     }
 
@@ -126,6 +124,8 @@ export class GameService implements OnModuleInit {
         if (!this.gameStateService.getIsGameActive())
             return;
 
+        this.gameStateService.resetAllResponseTime();
+
         const currentQuestionNumber = this.gameStateService.getCurrentQuestionNumber();
 
         if (currentQuestionNumber > this.TOTAL_QUESTIONS)
@@ -148,24 +148,34 @@ export class GameService implements OnModuleInit {
         this.gameTimerService.startTimer();
     }
 
-    private async handleCorrectAnswer(player: PlayerBody): Promise<void> {
-        this.gameTimerService.stopTimer();
+     private async handleCorrectAnswer(player: PlayerBody): Promise<void> {
+        this.gameStateService.getCurrentQuestion().isAnswered = true;
+
+        this.gameTimerService.setCurrentResponseTime(player.uniqueId);
+
         const combo = this.gameStateService.getCombos().get(player.uniqueId) || 0;
         const newScore = this.gameStateService.updateScore(player.uniqueId, 10 * (1 + combo * 0.2));
         const newCombo = this.gameStateService.updatePlayerCurrentCombo(player.uniqueId, 1);
         const comboMax = this.gameStateService.getCombosMax().get(player.uniqueId) || 0;
         this.gameStateService.resetCurrentCombosForOtherUsers(player.uniqueId);
-        const updatedPlayer = this.gameStateService.getPlayer(player.uniqueId);
+        const playerFromOnlineList = this.gameStateService.getPlayer(player.uniqueId);
 
-        if (updatedPlayer) {
-            this.gameEventService.emitCorrectAnswer({ player: updatedPlayer, score: newScore, combo: newCombo, comboMax });
-        }
+        if (playerFromOnlineList)
+            this.gameEventService.emitCorrectAnswer({ player: playerFromOnlineList, score: newScore, combo: newCombo, comboMax });
+
         this.handleSendCurrentScores();
-        this.statisticsService.incrementUserCorrectAnswers(updatedPlayer.uniqueId);
+        this.statisticsService.incrementUserCorrectAnswers(playerFromOnlineList.uniqueId);
+
+        this.gameTimerService.startCooldownAndSetFlag();
+    }
+
+    private async handleWrongAnswer(player: PlayerBody, answer: string): Promise<void> {
     }
 
     async handleAnswer(player: PlayerBody, answer: string): Promise<boolean> {
-        if (!player) return;
+        if (!player || !this.gameStateService.getPlayer(player.uniqueId)) {
+            return;
+        }
 
         const isQuestionReadyToAnwser = this.gameStateService.getCurrentQuestion() && !this.gameStateService.getCurrentQuestion().isAnswered
         if (!isQuestionReadyToAnwser) {
@@ -186,6 +196,7 @@ export class GameService implements OnModuleInit {
             return true;
         }
 
+        await this.handleWrongAnswer(player, answer);
         return false;
     }
 
