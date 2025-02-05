@@ -6,7 +6,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger, OnModuleInit } from '@nestjs/common';
-import { QuestionBody as NewQuestionBody } from './dto/question.body';
+import { NewQuestionBody as NewQuestionBody } from './dto/new-question.body';
 import { TotalLikesFromWaitingRoomBody } from './dto/total-likes-from-waiting-room.body';
 import { NewGiftBody } from './dto/gift.body';
 import { GameStateService } from '../game/services/game-state.service';

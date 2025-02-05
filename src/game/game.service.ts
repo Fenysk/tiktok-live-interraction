@@ -171,7 +171,7 @@ export class GameService implements OnModuleInit {
         this.websocketsGateway.emitNewQuestion({
             currentQuestionNumber: currentQuestionNumber,
             totalQuestions: this.TOTAL_QUESTIONS,
-            ...this.gameStateService.getCurrentQuestion(),
+            newQuestion: this.gameStateService.getCurrentQuestion(),
         });
 
         this.gameTimerService.startTimer();

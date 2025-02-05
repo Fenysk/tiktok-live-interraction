@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { CreateQuestionRequest } from './dto/create-question.request';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Question } from '@prisma/client';
+import { Prisma, Question } from '@prisma/client';
+import { FetchQuestionsRequest } from './dto/fetch-questions.request';
+import { UpdateQuestionRequest } from './dto/update-question.request';
 
 @Injectable()
 export class QuestionsService {
@@ -45,9 +47,45 @@ export class QuestionsService {
     }
 
 
+    async fetchQuestions(
+        dto: FetchQuestionsRequest
+    ): Promise<Question[]> {
+        const { sql, join } = Prisma;
+        const whereConditions = [];
 
-    async getAllQuestions() {
-        return this.prismaService.question.findMany({});
+        if (dto.findInQuestion) {
+            whereConditions.push(
+                sql`LOWER("questionText") LIKE LOWER('%' || ${dto.query} || '%')`
+            );
+        }
+
+        if (dto.findInAnswers) {
+            whereConditions.push(
+                sql`EXISTS (SELECT 1 FROM unnest("correctOptions") AS opt WHERE LOWER(opt) LIKE LOWER('%' || ${dto.query} || '%'))`
+            );
+            whereConditions.push(
+                sql`EXISTS (SELECT 1 FROM unnest("wrongOptions") AS opt WHERE LOWER(opt) LIKE LOWER('%' || ${dto.query} || '%'))`
+            );
+        }
+
+        if (dto.findInFieldsToComplete) {
+            whereConditions.push(
+                sql`EXISTS (SELECT 1 FROM unnest("fieldsToComplete") AS field WHERE LOWER(field) LIKE LOWER('%' || ${dto.query} || '%'))`
+            );
+        }
+
+        const whereClause = whereConditions.length > 0
+            ? sql`WHERE ${join(whereConditions, ' OR ')}`
+            : sql``;
+
+        const fetchedQuestions = await this.prismaService.$queryRaw<Question[]>`
+            SELECT * FROM "Question"
+            ${whereClause}
+            ORDER BY id
+            ${dto.query ? sql`` : sql`LIMIT 20 OFFSET ${(dto.page || 1) - 1} * 20`}
+        `;
+
+        return fetchedQuestions;
     }
 
     async getTextOfAllQuestions() {
@@ -87,6 +125,13 @@ export class QuestionsService {
         });
 
         return question;
+    }
+
+    async updateQuestion(updateQuestionDto: UpdateQuestionRequest) {
+        return this.prismaService.question.update({
+            where: { id: updateQuestionDto.id },
+            data: updateQuestionDto,
+        });
     }
 
     async deleteQuestion(id: string) {

@@ -1,12 +1,26 @@
-import { Controller, Post, Get, Body, Param, Delete } from '@nestjs/common';   
+import { Controller, Post, Get, Body, Param, Delete, Query, Put } from '@nestjs/common';
 import { CreateQuestionRequest } from 'src/questions/dto/create-question.request';
 import { QuestionsService } from './questions.service';
+import { FetchQuestionsRequest } from './dto/fetch-questions.request';
+import { UpdateQuestionRequest } from './dto/update-question.request';
 
 @Controller('questions')
 export class QuestionsController {
     constructor(
         private readonly questionsService: QuestionsService
     ) { }
+
+    @Post()
+    async fetchQuestions(
+        @Body() dto: FetchQuestionsRequest
+    ) {
+        return this.questionsService.fetchQuestions(dto);
+    }
+
+    @Get('text')
+    async getTextOfQuestions() {
+        return this.questionsService.getTextOfAllQuestions();
+    }
 
     @Post()
     async createQuestion(@Body() createQuestionDto: CreateQuestionRequest) {
@@ -18,14 +32,11 @@ export class QuestionsController {
         return this.questionsService.createMultipleQuestion(createQuestionDto);
     }
 
-    @Get()
-    async getQuestions() {
-        return this.questionsService.getAllQuestions();
-    }
-
-    @Get('text')
-    async getTextOfQuestions() {
-        return this.questionsService.getTextOfAllQuestions();
+    @Put()
+    async updateQuestion(
+        @Body() updateQuestionDto: UpdateQuestionRequest
+    ) {
+        return this.questionsService.updateQuestion(updateQuestionDto);
     }
 
     @Delete(':id')
