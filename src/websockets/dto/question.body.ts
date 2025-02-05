@@ -1,5 +1,5 @@
-import { IsString, IsNumber, IsArray, ValidateNested, IsNotEmpty, ArrayNotEmpty } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Difficulty } from '@prisma/client';
+import { IsString, IsNumber, IsArray, IsNotEmpty, ArrayNotEmpty, IsEnum } from 'class-validator';
 
 export class QuestionBody {
     @IsString()
@@ -14,25 +14,33 @@ export class QuestionBody {
 
     @IsString()
     @IsNotEmpty()
-    text: string;
+    questionText: string;
 
     @IsArray()
     @ArrayNotEmpty()
-    @ValidateNested({ each: true })
-    @Type(() => OptionBody)
-    options: OptionBody[];
+    @IsString({ each: true })
+    fieldsToComplete: string[];
+
+    @IsArray()
+    @ArrayNotEmpty()
+    @IsString({ each: true })
+    correctOptions: string[];
+
+    @IsArray()
+    @ArrayNotEmpty()
+    @IsString({ each: true })
+    wrongOptions: string[];
+
+    @IsArray()
+    @ArrayNotEmpty()
+    @IsString({ each: true })
+    mediasPath: string[];
+
+    @IsNotEmpty()
+    @IsEnum(Difficulty)
+    difficulty: Difficulty;
 
     @IsString()
     @IsNotEmpty()
-    correctOptionId: string;
-}
-
-class OptionBody {
-    @IsString()
-    @IsNotEmpty()
-    id: string;
-
-    @IsString()
-    @IsNotEmpty()
-    text: string;
+    explanation: string;
 }

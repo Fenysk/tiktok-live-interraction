@@ -11,7 +11,7 @@ import { LikeService } from 'src/like/like.service';
 import { ChatMessage } from 'src/tiktok/interface/chat.interface';
 import { LikeMessage } from 'src/tiktok/interface/like.interface';
 import { TiktokGiftMessage } from 'src/tiktok/interface/gift.interface';
-import { Option, Question } from '@prisma/client';
+import { Question } from '@prisma/client';
 import { GameEventService } from './services/game-event.service';
 import { StatisticsService } from 'src/statistics/statistics.service';
 import { PlayerBody } from 'src/websockets/dto/player.body';
@@ -99,8 +99,8 @@ export class GameService implements OnModuleInit {
         await this.nextQuestion();
     }
 
-    private async fetchQuestions(): Promise<(Question & { Options: Option[] })[]> {
-        const questions: (Question & { Options: Option[] })[] = [];
+    private async fetchQuestions(): Promise<Question[]> {
+        const questions: Question[] = [];
         for (let i = 0; i < this.TOTAL_QUESTIONS; i++) {
             const question = await this.questionsService.getRandomQuestion();
             if (!question) {
@@ -111,8 +111,8 @@ export class GameService implements OnModuleInit {
         return questions;
     }
 
-    private async fetchFakeQuestions(): Promise<(Question & { Options: Option[] })[]> {
-        const questions: (Question & { Options: Option[] })[] = [];
+    private async fetchFakeQuestions(): Promise<Question[]> {
+        const questions: Question[] = [];
         for (let i = 0; i < this.TOTAL_QUESTIONS; i++) {
             const question = await this.questionsService.getQuestionAtIndex(i);
             if (!question) {
@@ -146,20 +146,34 @@ export class GameService implements OnModuleInit {
         if (currentQuestionNumber > this.TOTAL_QUESTIONS)
             return this.showResults();
 
-        this.gameStateService.updateGameState({ currentQuestionNumber: currentQuestionNumber + 1 });
+        this.gameStateService.updateGameState({  });
 
         const currentQuestion = this.gameStateService.getGameQuestions()[currentQuestionNumber - 1];
 
-        this.gameStateService.setCurrentQuestion({
-            id: currentQuestion.id,
-            currentQuestionNumber: currentQuestionNumber,
+        this.gameStateService.updateGameState({
+            currentQuestionNumber: currentQuestionNumber + 1,
             totalQuestions: this.TOTAL_QUESTIONS,
-            text: currentQuestion.text,
-            options: currentQuestion.Options,
-            correctOptionId: currentQuestion.correctOptionId
+            isAnswered: false,
+            currentQuestion: {
+                id: currentQuestion.id,
+                questionText: currentQuestion.questionText,
+                fieldsToComplete: currentQuestion.fieldsToComplete,
+                correctOptions: currentQuestion.correctOptions,
+                wrongOptions: currentQuestion.wrongOptions,
+                mediasPath: currentQuestion.mediasPath,
+                explanation: currentQuestion.explanation,
+                difficulty: currentQuestion.difficulty,
+                createdAt: currentQuestion.createdAt,
+            },
+
         });
 
-        this.gameEventService.emitNewQuestion(this.gameStateService.getCurrentQuestion());
+        this.websocketsGateway.emitNewQuestion({
+            currentQuestionNumber: currentQuestionNumber,
+            totalQuestions: this.TOTAL_QUESTIONS,
+            ...this.gameStateService.getCurrentQuestion(),
+        });
+
         this.gameTimerService.startTimer();
 
         // const fakeUsers = new FakeMessages();
@@ -215,13 +229,13 @@ export class GameService implements OnModuleInit {
     private async handleCorrectAnswer(player: PlayerBody): Promise<void> {
         if (this.gameStateService.checkIfUserAlreadyAnswered(player.uniqueId)) return;
 
-        this.gameStateService.getCurrentQuestion().isAnswered = true;
+        this.gameStateService.updateGameState({ isAnswered: true });
         this.gameTimerService.startCooldownAndSetFlag();
 
         this.gameTimerService.setCurrentResponseTime(player.uniqueId);
 
         this.gameStateService.updateScore(player.uniqueId);
-        
+
         const playerFromOnlineList = this.gameStateService.getPlayer(player.uniqueId);
 
         if (playerFromOnlineList)
@@ -243,14 +257,15 @@ export class GameService implements OnModuleInit {
 
         this.statisticsService.updateUserLastParticipation(player.uniqueId);
 
-        const correctOption = this.gameStateService.getCurrentQuestion().options.find(
-            option => option.id === this.gameStateService.getCurrentQuestion().correctOptionId
-        );
-
+        const correctOptions = this.gameStateService.getCurrentQuestion().correctOptions;
         const normalizedAnswer = answer.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
-        const normalizedCorrectOption = correctOption.text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
 
-        if (normalizedAnswer === normalizedCorrectOption)
+        const isAnswerCorrect = correctOptions.some(option => {
+            const normalizedOption = option.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
+            return normalizedAnswer === normalizedOption;
+        });
+
+        if (isAnswerCorrect)
             await this.handleCorrectAnswer(player);
         // else
         //     await this.handleWrongAnswer(player, answer);

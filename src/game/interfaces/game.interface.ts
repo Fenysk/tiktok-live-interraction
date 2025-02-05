@@ -1,10 +1,10 @@
-import { Question, Option } from '@prisma/client';
+import { Question } from '@prisma/client';
 import { TiktokUser } from 'src/tiktok/interface/user.interface';
 
 export interface GameState {
   isActive: boolean;
-  gameQuestions: (Question & { Options: Option[] })[];
-  currentQuestion?: Question & { Options: Option[] };
+  gameQuestions: Question[];
+  currentQuestion?: Question;
   currentQuestionNumber: number;
   totalQuestions: number;
   scores: Map<string, number>;
@@ -12,4 +12,5 @@ export interface GameState {
   comboMax: Map<string, number>;
   responseTimes: Map<string, number>;
   onlineUsers: TiktokUser[];
+  isAnswered: boolean;
 }

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CreateQuestionRequest } from './dto/create-question.request';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Option, Question } from '@prisma/client';
+import { Question } from '@prisma/client';
 
 @Injectable()
 export class QuestionsService {
@@ -10,70 +10,30 @@ export class QuestionsService {
     ) { }
 
     async createQuestion(createQuestionDto: CreateQuestionRequest) {
-        const { text, correctOptionIndex, options } = createQuestionDto;
-
-        return this.prismaService.$transaction(async (tx) => {
-            const question = await tx.question.create({
-                data: {
-                    text,
-                    correctOptionId: null,
-                    Options: {
-                        create: options.map(option => ({
-                            text: option.text
-                        }))
-                    }
-                },
-                include: {
-                    Options: true
-                }
-            });
-
-            const updatedQuestion = await tx.question.update({
-                where: { id: question.id },
-                data: {
-                    correctOptionId: question.Options[correctOptionIndex].id
-                },
-                include: {
-                    Options: true
-                }
-            });
-
-            return updatedQuestion;
+        const createdQuestion = await this.prismaService.question.create({
+            data: createQuestionDto,
         });
+
+        return createdQuestion;
     }
 
     async createMultipleQuestion(createQuestionDto: CreateQuestionRequest[]) {
         return this.prismaService.$transaction(async (tx) => {
             const createdQuestions = await Promise.all(
                 createQuestionDto.map(async (questionDto) => {
-                    const { text, correctOptionIndex, options } = questionDto;
-
                     const question = await tx.question.create({
                         data: {
-                            text,
-                            correctOptionId: null,
-                            Options: {
-                                create: options.map(option => ({
-                                    text: option.text
-                                }))
-                            }
+                            questionText: questionDto.questionText,
+                            fieldsToComplete: questionDto.fieldsToComplete,
+                            correctOptions: questionDto.correctOptions,
+                            wrongOptions: questionDto.wrongOptions,
+                            mediasPath: questionDto.mediasPath,
+                            explanation: questionDto.explanation,
+                            difficulty: questionDto.difficulty,
                         },
-                        include: {
-                            Options: true
-                        }
                     });
 
-                    const updatedQuestion = await tx.question.update({
-                        where: { id: question.id },
-                        data: {
-                            correctOptionId: question.Options[correctOptionIndex].id
-                        },
-                        include: {
-                            Options: true
-                        }
-                    });
-
-                    return updatedQuestion;
+                    return question;
                 })
             );
 
@@ -86,24 +46,20 @@ export class QuestionsService {
 
 
 
-    async getQuestions() {
-        return this.prismaService.question.findMany({
-            include: {
-                Options: true
-            }
-        });
+    async getAllQuestions() {
+        return this.prismaService.question.findMany({});
     }
 
-    async getTextOfQuestions() {
+    async getTextOfAllQuestions() {
         return this.prismaService.question.findMany({
             select: {
                 id: true,
-                text: true
+                questionText: true
             }
         });
     }
 
-    async getQuestionAtIndex(index: number): Promise<(Question & { Options: Option[] })> {
+    async getQuestionAtIndex(index: number): Promise<Question | null> {
         const count = await this.prismaService.question.count();
 
         if (index < 0 || index >= count)
@@ -112,29 +68,22 @@ export class QuestionsService {
         const [question] = await this.prismaService.question.findMany({
             take: 1,
             skip: index,
-            include: {
-                Options: true
-            }
         });
 
         return question;
     }
 
-    async getRandomQuestion(): Promise<(Question & { Options: Option[] })> {
+    async getRandomQuestion(): Promise<Question | null> {
         const count = await this.prismaService.question.count();
 
-        if (count === 0) {
+        if (count === 0)
             return null;
-        }
 
         const randomSkip = Math.floor(Math.random() * count);
 
         const [question] = await this.prismaService.question.findMany({
             take: 1,
             skip: randomSkip,
-            include: {
-                Options: true
-            }
         });
 
         return question;
@@ -142,10 +91,7 @@ export class QuestionsService {
 
     async deleteQuestion(id: string) {
         return this.prismaService.question.delete({
-            where: { id },
-            include: {
-                Options: true,
-            }
+            where: { id }
         });
     }
 

@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { GameState } from "../interfaces/game.interface";
-import { Option, Question } from "@prisma/client";
+import { Question } from "@prisma/client";
 import { TiktokUser } from "src/tiktok/interface/user.interface";
 
 @Injectable()
@@ -28,6 +28,7 @@ export class GameStateService {
             comboMax: new Map<string, number>(),
             responseTimes: new Map<string, number>(), 
             onlineUsers: onlineUsers,
+            isAnswered: false,
         };
     }
 
@@ -36,7 +37,7 @@ export class GameStateService {
         this.initializeScoresForNewUsers(onlineUsers);
     }
 
-    setCurrentQuestion(question: any): void {
+    setCurrentQuestion(question: Question): void {
         this.currentGameState.currentQuestion = question;
     }
 
@@ -44,7 +45,7 @@ export class GameStateService {
         this.currentGameState.isActive = isActive;
     }
 
-    setGameQuestions(questions: (Question & { Options: Option[] })[]): void {
+    setGameQuestions(questions: Question[]): void {
         this.currentGameState.gameQuestions = questions;
     }
 
@@ -114,7 +115,7 @@ export class GameStateService {
         return this.currentGameState.isActive;
     }
 
-    getCurrentQuestion(): any {
+    getCurrentQuestion(): Question {
         return this.currentGameState.currentQuestion;
     }
 
@@ -122,7 +123,7 @@ export class GameStateService {
         return this.currentGameState.currentQuestionNumber;
     }
 
-    getGameQuestions(): (Question & { Options: Option[] })[] {
+    getGameQuestions(): Question[] {
         return this.currentGameState.gameQuestions;
     }
 

@@ -47,6 +47,7 @@ export class WebsocketsGateway implements OnGatewayConnection, OnGatewayDisconne
   }
 
   emitNewQuestion(data: NewQuestionBody): void {
+    console.log(`New question emitted: ${JSON.stringify(data)}`);
     this.emit(WebSocketEvents.NEW_QUESTION, data);
   }
 

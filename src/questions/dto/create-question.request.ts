@@ -1,24 +1,29 @@
-import { IsString, IsArray, IsNotEmpty, ArrayMinSize, ValidateNested } from 'class-validator';
-import { Type as TransformType, Type } from 'class-transformer';
-
-class OptionRequest {
-    @IsString()
-    @IsNotEmpty() 
-    readonly text: string;
-}
+import { Difficulty } from '@prisma/client';
+import { IsString, IsArray, IsNotEmpty, ArrayMinSize, IsEnum, IsOptional } from 'class-validator';
 
 export class CreateQuestionRequest {
     @IsString()
     @IsNotEmpty()
-    readonly text: string;
-
-    @IsNotEmpty()
-    @Type(() => Number)
-    readonly correctOptionIndex: number;
+    readonly questionText: string;
 
     @IsArray()
-    @ArrayMinSize(2)
-    @ValidateNested({ each: true })
-    @TransformType(() => OptionRequest)
-    readonly options: OptionRequest[];
+    readonly fieldsToComplete: string[];
+
+    @IsArray()
+    @ArrayMinSize(1)
+    readonly correctOptions: string[];
+
+    @IsArray()
+    @ArrayMinSize(1)
+    readonly wrongOptions: string[];
+
+    @IsArray()
+    readonly mediasPath: string[];
+
+    @IsOptional()
+    @IsString()
+    readonly explanation?: string;
+
+    @IsEnum(Difficulty)
+    readonly difficulty: Difficulty;
 }

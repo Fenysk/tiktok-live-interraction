@@ -8,8 +8,8 @@ datasource db {
 }
 
 model User {
-  uniqueId String @id
-  nickname String
+  uniqueId          String  @id
+  nickname          String
   profilePictureUrl String?
 
   Statistic Statistic? @relation("UserToStatistic")
@@ -18,33 +18,31 @@ model User {
 model Question {
   id String @id @default(uuid())
 
-  text    String
-  correctOptionId String?
-  
-  Options Option[] @relation("QuestionToOptions")
+  questionText     String
+  fieldsToComplete String[]
+  correctOptions   String[]
+  wrongOptions     String[]
+  mediasPath       String[]
+  explanation      String?
+
+  difficulty Difficulty
 
   createdAt DateTime @default(now())
 }
 
-model Option {
-  id   String @id @default(uuid())
-  text String
-
-  questionId String
-  Question   Question @relation("QuestionToOptions", fields: [questionId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([questionId])
+enum Difficulty {
+  EASY  
+  MEDIUM
+  HARD
 }
 
 model Statistic {
   uniqueId String @id @map("userId")
-  User   User   @relation("UserToStatistic", fields: [uniqueId], references: [uniqueId], onDelete: Cascade)
+  User     User   @relation("UserToStatistic", fields: [uniqueId], references: [uniqueId], onDelete: Cascade)
 
-  lastParticipation DateTime?
-  participationCount Int @default(0)
-  
+  lastParticipation  DateTime?
+  participationCount Int       @default(0)
+
   totalScore     Int @default(0)
   correctAnswers Int @default(0)
   comboMax       Int @default(0)

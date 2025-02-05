@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "Question" ALTER COLUMN "correctOptions" DROP DEFAULT,
+ALTER COLUMN "wrongOptions" DROP DEFAULT,
+ALTER COLUMN "difficulty" DROP DEFAULT,
+ALTER COLUMN "fieldsToComplete" DROP DEFAULT,
+ALTER COLUMN "mediasPath" DROP DEFAULT;

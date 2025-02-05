@@ -20,12 +20,12 @@ export class QuestionsController {
 
     @Get()
     async getQuestions() {
-        return this.questionsService.getQuestions();
+        return this.questionsService.getAllQuestions();
     }
 
     @Get('text')
     async getTextOfQuestions() {
-        return this.questionsService.getTextOfQuestions();
+        return this.questionsService.getTextOfAllQuestions();
     }
 
     @Delete(':id')
