@@ -245,7 +245,7 @@ export class GameService implements OnModuleInit {
     }
 
     private async handleWrongAnswer(player: PlayerBody, answer: string): Promise<void> {
-        console.log(`Player ${player.uniqueId} answered incorrectly: ${answer}`);
+        this.websocketsGateway.emitWrongAnswer({player, answer});
     }
 
     async handleAnswer(player: PlayerBody, answer: string): Promise<void> {
@@ -267,8 +267,8 @@ export class GameService implements OnModuleInit {
 
         if (isAnswerCorrect)
             await this.handleCorrectAnswer(player);
-        // else
-        //     await this.handleWrongAnswer(player, answer);
+        else
+            await this.handleWrongAnswer(player, answer);
     }
 
     handleSendCurrentScores() {

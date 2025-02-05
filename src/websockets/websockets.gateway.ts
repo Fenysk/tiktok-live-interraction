@@ -17,6 +17,7 @@ import { NewViewerMessage } from 'src/tiktok/interface/new-viewer.interface';
 import { PlayerBody } from './dto/player.body';
 import { CurrentPlayersScoresBody } from './dto/current-players-scores.body';
 import { CooldownTimeoutBody } from './dto/cooldown-timeout.body';
+import { WrongAnswerBody } from './dto/wrong-answer.body';
 
 @WebSocketGateway({ cors: { origin: '*' } })
 export class WebsocketsGateway implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit {
@@ -58,6 +59,10 @@ export class WebsocketsGateway implements OnGatewayConnection, OnGatewayDisconne
 
   emitCorrectAnswer(data: PlayerBody): void {
     this.emit(WebSocketEvents.CORRECT_ANSWER, data);
+  }
+
+  emitWrongAnswer(data: WrongAnswerBody): void {
+    this.emit(WebSocketEvents.WRONG_ANSWER, data);
   }
 
   emitGameEnded(): void {
