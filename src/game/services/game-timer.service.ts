@@ -88,6 +88,7 @@ export class GameTimerService {
     private handleCooldownEnd(): void {
         this.isCooldownActive = false;
         this.stopTimer();
+        this.gameStateService.updateGameState({ isAnswered: false });
         const responseTimes: ResponseTimeBody[] = [];
         this.gameStateService.resetCombosForNotWinners();
         this.gameStateService.getResponseTimes().forEach((time, uniqueId) => {

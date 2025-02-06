@@ -146,7 +146,7 @@ export class GameService implements OnModuleInit {
         if (currentQuestionNumber > this.TOTAL_QUESTIONS)
             return this.showResults();
 
-        this.gameStateService.updateGameState({  });
+        this.gameStateService.updateGameState({ isAnswered: false });
 
         const currentQuestion = this.gameStateService.getGameQuestions()[currentQuestionNumber - 1];
 

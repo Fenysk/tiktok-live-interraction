@@ -42,7 +42,7 @@ export class TiktokService implements OnModuleInit {
     }
 
     async onModuleInit() {
-        // await this.initTikTokLiveConnection();
+        await this.initTikTokLiveConnection();
         this.initializeListeners();
     }
 
