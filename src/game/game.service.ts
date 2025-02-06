@@ -171,6 +171,7 @@ export class GameService implements OnModuleInit {
         this.websocketsGateway.emitNewQuestion({
             currentQuestionNumber: currentQuestionNumber,
             totalQuestions: this.TOTAL_QUESTIONS,
+            answersOrder: this.shuffleArray([...currentQuestion.correctOptions, ...currentQuestion.wrongOptions]),
             newQuestion: this.gameStateService.getCurrentQuestion(),
         });
 
@@ -224,6 +225,14 @@ export class GameService implements OnModuleInit {
         //     setTimeout(() => this.handleChatMessage(fakeUsers.exampleChatMessage17), 2000);
         //     setTimeout(() => this.handleChatMessage(fakeUsers.exampleChatMessage18), 1000);
         // }, 5000);
+    }
+
+    shuffleArray(array: any[]): any[] {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
     }
 
     private async handleCorrectAnswer(player: PlayerBody): Promise<void> {

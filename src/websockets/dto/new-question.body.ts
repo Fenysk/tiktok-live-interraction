@@ -1,5 +1,5 @@
 import { Question } from '@prisma/client';
-import { IsNotEmpty, IsNumber } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsArray } from 'class-validator';
 
 export class NewQuestionBody {
 
@@ -11,4 +11,7 @@ export class NewQuestionBody {
 
     @IsNotEmpty()
     newQuestion: Question;
+
+    @IsArray()
+    answersOrder: string[];
 }
