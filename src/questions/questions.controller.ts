@@ -3,6 +3,7 @@ import { CreateQuestionRequest } from 'src/questions/dto/create-question.request
 import { QuestionsService } from './questions.service';
 import { FetchQuestionsRequest } from './dto/fetch-questions.request';
 import { UpdateQuestionRequest } from './dto/update-question.request';
+import { Question } from '@prisma/client';
 
 @Controller('questions')
 export class QuestionsController {
@@ -35,7 +36,7 @@ export class QuestionsController {
     @Put()
     async updateQuestion(
         @Body() updateQuestionDto: UpdateQuestionRequest
-    ) {
+    ): Promise<Question> {
         return this.questionsService.updateQuestion(updateQuestionDto);
     }
 

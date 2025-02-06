@@ -12,6 +12,8 @@ import { AnswersModule } from './answers/answers.module';
 import { KeypressModule } from './keypress/keypress.module';
 import { UsersModule } from './users/users.module';
 import { StatisticsModule } from './statistics/statistics.module';
+import { AnalyseModule } from './analyse/analyse.module';
+import { CommonModule } from './common/common.module';
 
 @Module({
   imports: [
@@ -26,6 +28,8 @@ import { StatisticsModule } from './statistics/statistics.module';
     KeypressModule,
     UsersModule,
     StatisticsModule,
+    AnalyseModule,
+    CommonModule,
   ],
   controllers: [AppController],
   providers: [AppService],
