@@ -6,6 +6,8 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { GameStateService } from 'src/game/services/game-state.service';
 import { ChatMessage } from 'src/tiktok/interface/chat.interface';
 import { User } from '@prisma/client';
+import { YoutubeService } from 'src/youtube/youtube.service';
+import { TwitchService } from 'src/twitch/twitch.service';
 
 @Injectable()
 export class UsersService implements OnModuleInit {
@@ -13,6 +15,8 @@ export class UsersService implements OnModuleInit {
 
     constructor(
         private readonly tiktokService: TiktokService,
+        private readonly youtubeService: YoutubeService,
+        private readonly twitchService: TwitchService,
         private readonly prismaService: PrismaService,
         private readonly gameStateService: GameStateService,
     ) {}
@@ -24,6 +28,8 @@ export class UsersService implements OnModuleInit {
     private initializeListeners(): void {
         this.tiktokService.subscribeToNewViewer(this.handleNewViewer.bind(this));
         this.tiktokService.subscribeToNewMessage(this.handleNewMessage.bind(this));
+        this.youtubeService.subscribeToNewMessage(this.handleNewMessage.bind(this));
+        this.twitchService.subscribeToNewMessage(this.handleNewMessage.bind(this));
     }
 
     async handleNewViewer(data: NewViewerMessage): Promise<void> {

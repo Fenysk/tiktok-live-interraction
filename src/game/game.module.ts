@@ -9,6 +9,8 @@ import { QuestionsModule } from 'src/questions/questions.module';
 import { GameEventService } from './services/game-event.service';
 import { UsersModule } from 'src/users/users.module';
 import { TiktokModule } from 'src/tiktok/tiktok.module';
+import { YoutubeModule } from 'src/youtube/youtube.module';
+import { TwitchModule } from 'src/twitch/twitch.module';
 
 @Module({
   imports: [
@@ -17,6 +19,8 @@ import { TiktokModule } from 'src/tiktok/tiktok.module';
     QuestionsModule,
     UsersModule,
     TiktokModule,
+    YoutubeModule,
+    TwitchModule,
   ],
   providers: [
     GameService,

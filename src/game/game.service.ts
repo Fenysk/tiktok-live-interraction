@@ -15,8 +15,9 @@ import { Question } from '@prisma/client';
 import { GameEventService } from './services/game-event.service';
 import { StatisticsService } from 'src/statistics/statistics.service';
 import { PlayerBody } from 'src/websockets/dto/player.body';
-import { FakeMessages } from 'src/users/fake-messages.constants';
 import { UsersService } from 'src/users/users.service';
+import { YoutubeService } from 'src/youtube/youtube.service';
+import { TwitchService } from 'src/twitch/twitch.service';
 
 @Injectable()
 export class GameService implements OnModuleInit {
@@ -27,6 +28,8 @@ export class GameService implements OnModuleInit {
         private readonly websocketsGateway: WebsocketsGateway,
         private readonly questionsService: QuestionsService,
         private readonly tiktokService: TiktokService,
+        private readonly youtubeService: YoutubeService,
+        private readonly twitchService: TwitchService,
         private readonly gameStateService: GameStateService,
         private readonly gameTimerService: GameTimerService,
         private readonly likeService: LikeService,
@@ -44,6 +47,8 @@ export class GameService implements OnModuleInit {
         this.tiktokService.subscribeToNewMessage(this.handleChatMessage.bind(this));
         this.tiktokService.subscribeToLike(this.handleLikeMessage.bind(this));
         this.tiktokService.subscribeToGift(this.handleGiftMessage.bind(this));
+        this.youtubeService.subscribeToNewMessage(this.handleChatMessage.bind(this));
+        this.twitchService.subscribeToNewMessage(this.handleChatMessage.bind(this));
     }
 
     private handleChatMessage(data: ChatMessage): void {
@@ -254,7 +259,7 @@ export class GameService implements OnModuleInit {
     }
 
     private async handleWrongAnswer(player: PlayerBody, answer: string): Promise<void> {
-        this.websocketsGateway.emitWrongAnswer({player, answer});
+        this.websocketsGateway.emitWrongAnswer({ player, answer });
     }
 
     async handleAnswer(player: PlayerBody, answer: string): Promise<void> {

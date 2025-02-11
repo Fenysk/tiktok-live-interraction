@@ -14,6 +14,8 @@ import { UsersModule } from './users/users.module';
 import { StatisticsModule } from './statistics/statistics.module';
 import { AnalyseModule } from './analyse/analyse.module';
 import { CommonModule } from './common/common.module';
+import { YoutubeModule } from './youtube/youtube.module';
+import { TwitchModule } from './twitch/twitch.module';
 
 @Module({
   imports: [
@@ -30,6 +32,8 @@ import { CommonModule } from './common/common.module';
     StatisticsModule,
     AnalyseModule,
     CommonModule,
+    YoutubeModule,
+    TwitchModule,
   ],
   controllers: [AppController],
   providers: [AppService],

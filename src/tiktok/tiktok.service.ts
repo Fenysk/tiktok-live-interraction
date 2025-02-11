@@ -42,8 +42,7 @@ export class TiktokService implements OnModuleInit {
     }
 
     async onModuleInit() {
-        await this.initTikTokLiveConnection();
-        this.initializeListeners();
+        this.initTikTokLiveConnection();        
     }
 
     private initializeListeners(): void {
@@ -83,6 +82,7 @@ export class TiktokService implements OnModuleInit {
                 this.isConnected = true;
                 this.reconnectAttempts = 0;
                 console.log('Connected to TikTok Live');
+                this.initializeListeners();
                 return;
             } catch (error) {
                 console.error('Failed to connect to TikTok Live', error);
